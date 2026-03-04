@@ -1,0 +1,229 @@
+openapi: 3.0.3
+info:
+  title: Notification Microservice API
+  version: 1.0.0
+  description: |
+    Микросервис публичных каналов с отслеживанием непрочитанных сообщений.
+servers:
+  - url: http://localhost:8080
+
+tags:
+  - name: Internal
+  - name: API
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: Token
+  schemas:
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+      required: [error]
+    RegisterRequest:
+      type: object
+      properties:
+        username:
+          type: string
+          maxLength: 255
+    RegisterResponse:
+      type: object
+      properties:
+        token:
+          type: string
+      required: [token]
+    SendRequest:
+      type: object
+      properties:
+        topic:
+          type: string
+          maxLength: 255
+        message:
+          type: string
+          maxLength: 4096
+      required: [topic, message]
+    SendResponse:
+      type: object
+      properties:
+        message_id:
+          type: integer
+          format: int64
+      required: [message_id]
+    MessageItem:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        content:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        sender_id:
+          type: integer
+          nullable: true
+      required: [id, content, created_at, sender_id]
+    MessagesResponse:
+      type: object
+      properties:
+        messages:
+          type: array
+          items:
+            $ref: '#/components/schemas/MessageItem'
+      required: [messages]
+    TopicsResponse:
+      type: object
+      properties:
+        topics:
+          type: array
+          items:
+            type: string
+      required: [topics]
+
+paths:
+  /internal/register:
+    post:
+      tags: [Internal]
+      summary: Register user (internal only)
+      parameters:
+        - in: header
+          name: X-Internal-Secret
+          schema:
+            type: string
+          required: false
+          description: Required if request is not from localhost.
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+      responses:
+        '201':
+          description: User created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RegisterResponse'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Registration endpoint disabled
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/send:
+    post:
+      tags: [API]
+      summary: Send message to topic
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SendRequest'
+      responses:
+        '201':
+          description: Message accepted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SendResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '422':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/messages:
+    get:
+      tags: [API]
+      summary: Get unread messages from default topic
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Unread messages
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessagesResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/messages/{topic}:
+    get:
+      tags: [API]
+      summary: Get unread messages from topic
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: topic
+          required: true
+          schema:
+            type: string
+            maxLength: 255
+      responses:
+        '200':
+          description: Unread messages
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessagesResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '422':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/topics:
+    get:
+      tags: [API]
+      summary: List all topics
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Topics list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TopicsResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'

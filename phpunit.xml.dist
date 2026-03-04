@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<phpunit xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:noNamespaceSchemaLocation="vendor/phpunit/phpunit/phpunit.xsd"
+         backupGlobals="false"
+         colors="true"
+         bootstrap="tests/bootstrap.php"
+         cacheDirectory=".phpunit.cache">
+    <php>
+        <env name="APP_ENV" value="test" force="true"/>
+        <env name="APP_DEBUG" value="1" force="true"/>
+        <env name="KERNEL_CLASS" value="App\Kernel" force="true"/>
+        <env name="DATABASE_URL" value="pgsql://app:app@postgres:5432/notifications_test?serverVersion=13&amp;charset=utf8" force="true"/>
+        <env name="REDIS_HOST" value="redis" force="true"/>
+        <env name="REDIS_PORT" value="6379" force="true"/>
+        <env name="TOKEN_TTL_SECONDS" value="2592000" force="true"/>
+        <env name="DEFAULT_TOPIC" value="default" force="true"/>
+        <env name="INTERNAL_API_SECRET" value="internal-secret" force="true"/>
+        <env name="INTERNAL_REGISTRATION_ENABLED" value="1" force="true"/>
+    </php>
+
+    <testsuites>
+        <testsuite name="Application Test Suite">
+            <directory>tests</directory>
+        </testsuite>
+    </testsuites>
+</phpunit>

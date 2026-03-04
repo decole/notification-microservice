@@ -1,0 +1,32 @@
+parameters:
+  token_ttl_seconds: '%env(int:TOKEN_TTL_SECONDS)%'
+  default_topic: '%env(string:DEFAULT_TOPIC)%'
+  internal_api_secret: '%env(string:INTERNAL_API_SECRET)%'
+  internal_registration_enabled: '%env(bool:INTERNAL_REGISTRATION_ENABLED)%'
+
+services:
+  _defaults:
+    autowire: true
+    autoconfigure: true
+    bind:
+      int $tokenTtlSeconds: '%token_ttl_seconds%'
+      string $defaultTopic: '%default_topic%'
+      string $internalApiSecret: '%internal_api_secret%'
+      bool $internalRegistrationEnabled: '%internal_registration_enabled%'
+
+  App\Controller\:
+    resource: '../src/Controller/'
+    tags: ['controller.service_arguments']
+
+  App\:
+    resource: '../src/'
+    exclude:
+      - '../src/Kernel.php'
+      - '../src/Controller/'
+
+  Redis:
+    class: Redis
+    factory: ['@App\Factory\RedisFactory', 'create']
+    arguments:
+      - '%env(string:REDIS_HOST)%'
+      - '%env(int:REDIS_PORT)%'
