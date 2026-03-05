@@ -20,7 +20,7 @@ services:
       - postgres
       - redis
     networks:
-      - ubser_notification
+      - uber_notification
 
   nginx:
     image: nginx:1.27-alpine
@@ -32,7 +32,7 @@ services:
     depends_on:
       - php
     networks:
-      - ubser_notification
+      - uber_notification
 
   postgres:
     image: postgres:15-alpine
@@ -45,7 +45,7 @@ services:
     volumes:
       - pgdata:/var/lib/postgresql/data
     networks:
-      - ubser_notification
+      - uber_notification
 
   redis:
     image: redis:7-alpine
@@ -55,16 +55,15 @@ services:
     volumes:
       - redisdata:/data
     networks:
-      - ubser_notification
+      - uber_notification
 
 ###> doctrine/doctrine-bundle ###
   database:
     image: postgres:${POSTGRES_VERSION:-16}-alpine
     environment:
-      POSTGRES_DB: ${POSTGRES_DB:-app}
-      # You should definitely change the password in production
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-!ChangeMe!}
-      POSTGRES_USER: ${POSTGRES_USER:-app}
+      POSTGRES_DB: app
+      POSTGRES_PASSWORD: app
+      POSTGRES_USER: app
     volumes:
       - database_data:/var/lib/postgresql/data:rw
       # You may use a bind-mounted host directory instead, so that it is harder to accidentally remove the volume and lose all your data!
@@ -80,5 +79,5 @@ volumes:
   redisdata:
 
 networks:
-  ubser_notification:
+  uber_notification:
     driver: bridge
