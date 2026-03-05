@@ -10,8 +10,7 @@ class NotificationService
 {
     public function __construct(
         private readonly Connection $connection,
-    ) {
-    }
+    ) {}
 
     public function sendMessage(int $senderId, string $topicName, string $content): int
     {
@@ -23,7 +22,7 @@ class NotificationService
                 'topic_id' => $topicId,
                 'user_id' => $senderId,
                 'content' => $content,
-            ]
+            ],
         );
     }
 
@@ -37,10 +36,10 @@ class NotificationService
         try {
             $topicId = $this->connection->fetchOne(
                 'SELECT id FROM topics WHERE name = :name',
-                ['name' => $topicName]
+                ['name' => $topicName],
             );
 
-            if ($topicId === false) {
+            if (false === $topicId) {
                 $this->connection->commit();
 
                 return [];
@@ -53,7 +52,7 @@ class NotificationService
                 [
                     'user_id' => $userId,
                     'topic_id' => $topicId,
-                ]
+                ],
             );
 
             $lastReadId = is_numeric($lastRead) ? (int) $lastRead : 0;
@@ -66,17 +65,17 @@ class NotificationService
                 [
                     'topic_id' => $topicId,
                     'last_read' => $lastReadId,
-                ]
+                ],
             );
 
             $messages = array_map(static fn (array $row): array => [
                 'id' => (int) $row['id'],
                 'content' => (string) $row['content'],
                 'created_at' => (string) $row['created_at'],
-                'sender_id' => $row['sender_id'] !== null ? (int) $row['sender_id'] : null,
+                'sender_id' => null !== $row['sender_id'] ? (int) $row['sender_id'] : null,
             ], $rows);
 
-            if ($messages !== []) {
+            if ([] !== $messages) {
                 $maxId = $messages[array_key_last($messages)]['id'];
 
                 $this->connection->executeStatement(
@@ -88,7 +87,7 @@ class NotificationService
                         'user_id' => $userId,
                         'topic_id' => $topicId,
                         'last_read_message_id' => $maxId,
-                    ]
+                    ],
                 );
             }
 
@@ -116,7 +115,7 @@ class NotificationService
     {
         $topicId = $this->connection->fetchOne('SELECT id FROM topics WHERE name = :name', ['name' => $topicName]);
 
-        if ($topicId !== false) {
+        if (false !== $topicId) {
             return (int) $topicId;
         }
 
@@ -124,7 +123,7 @@ class NotificationService
             'INSERT INTO topics(name, created_at) VALUES(:name, NOW())
              ON CONFLICT (name) DO UPDATE SET name = EXCLUDED.name
              RETURNING id',
-            ['name' => $topicName]
+            ['name' => $topicName],
         );
     }
 }

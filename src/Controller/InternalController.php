@@ -15,8 +15,7 @@ class InternalController
         private readonly UserService $userService,
         private readonly string $internalApiSecret,
         private readonly bool $internalRegistrationEnabled,
-    ) {
-    }
+    ) {}
 
     #[Route('/internal/register', name: 'internal_register', methods: ['POST'])]
     public function register(Request $request): JsonResponse
@@ -29,12 +28,12 @@ class InternalController
         $providedSecret = $request->headers->get('X-Internal-Secret');
         $isLocalhost = in_array($clientIp, ['127.0.0.1', '::1'], true);
 
-        if (!$isLocalhost && ($providedSecret === null || !hash_equals($this->internalApiSecret, $providedSecret))) {
+        if (!$isLocalhost && (null === $providedSecret || !hash_equals($this->internalApiSecret, $providedSecret))) {
             return new JsonResponse(['error' => 'Forbidden'], 403);
         }
 
         $payload = $this->decodeJson($request);
-        $username = isset($payload['username']) && is_string($payload['username']) && $payload['username'] !== ''
+        $username = isset($payload['username']) && is_string($payload['username']) && '' !== $payload['username']
             ? mb_substr($payload['username'], 0, 255)
             : null;
 
@@ -50,7 +49,7 @@ class InternalController
     {
         $raw = trim((string) $request->getContent());
 
-        if ($raw == '') {
+        if ('' == $raw) {
             return [];
         }
 

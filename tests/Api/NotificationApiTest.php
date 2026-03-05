@@ -12,8 +12,11 @@ use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 final class NotificationApiTest extends WebTestCase
 {
     private Connection $connection;
+
     private \Redis $redis;
+
     private UserService $userService;
+
     private KernelBrowser $client;
 
     protected function setUp(): void
@@ -37,7 +40,7 @@ final class NotificationApiTest extends WebTestCase
             'POST',
             '/internal/register',
             server: ['HTTP_X_INTERNAL_SECRET' => 'internal-secret', 'CONTENT_TYPE' => 'application/json'],
-            content: json_encode(['username' => 'alice'], JSON_THROW_ON_ERROR)
+            content: json_encode(['username' => 'alice'], JSON_THROW_ON_ERROR),
         );
 
         self::assertResponseStatusCodeSame(201);
@@ -64,7 +67,7 @@ final class NotificationApiTest extends WebTestCase
             'POST',
             '/api/send',
             server: $this->authServer($senderToken),
-            content: json_encode(['topic' => 'work', 'message' => 'Hello team'], JSON_THROW_ON_ERROR)
+            content: json_encode(['topic' => 'work', 'message' => 'Hello team'], JSON_THROW_ON_ERROR),
         );
 
         self::assertResponseStatusCodeSame(201);
@@ -91,7 +94,7 @@ final class NotificationApiTest extends WebTestCase
             'POST',
             '/api/send',
             server: $this->authServer($token),
-            content: json_encode(['topic' => 'default', 'message' => 'Default message'], JSON_THROW_ON_ERROR)
+            content: json_encode(['topic' => 'default', 'message' => 'Default message'], JSON_THROW_ON_ERROR),
         );
         self::assertResponseStatusCodeSame(201);
 
@@ -111,7 +114,7 @@ final class NotificationApiTest extends WebTestCase
             'POST',
             '/api/send',
             server: $this->authServer($token),
-            content: json_encode(['topic' => 'alpha', 'message' => 'A'], JSON_THROW_ON_ERROR)
+            content: json_encode(['topic' => 'alpha', 'message' => 'A'], JSON_THROW_ON_ERROR),
         );
         self::assertResponseStatusCodeSame(201);
 
@@ -119,7 +122,7 @@ final class NotificationApiTest extends WebTestCase
             'POST',
             '/api/send',
             server: $this->authServer($token),
-            content: json_encode(['topic' => 'beta', 'message' => 'B'], JSON_THROW_ON_ERROR)
+            content: json_encode(['topic' => 'beta', 'message' => 'B'], JSON_THROW_ON_ERROR),
         );
         self::assertResponseStatusCodeSame(201);
 
@@ -156,9 +159,8 @@ final class NotificationApiTest extends WebTestCase
         $this->connection->executeStatement("INSERT INTO topics(name, created_at) VALUES('default', NOW())");
 
         $keys = $this->redis->keys('auth:token:*');
-        if (is_array($keys) && $keys !== []) {
+        if (is_array($keys) && [] !== $keys) {
             $this->redis->del($keys);
         }
     }
-
 }

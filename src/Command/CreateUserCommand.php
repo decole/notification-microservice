@@ -31,7 +31,7 @@ class CreateUserCommand extends Command
         $io = new SymfonyStyle($input, $output);
         $username = $input->getArgument('username');
 
-        $user = $this->userService->createUser(is_string($username) && $username !== '' ? $username : null);
+        $user = $this->userService->createUser(is_string($username) && '' !== $username ? $username : null);
 
         $io->success(sprintf('User created. Token: %s', $user['token']));
 

@@ -12,8 +12,7 @@ class UserService
         private readonly Connection $connection,
         private readonly \Redis $redis,
         private readonly int $tokenTtlSeconds,
-    ) {
-    }
+    ) {}
 
     /**
      * @return array{id:int,token:string,username:?string}
@@ -27,7 +26,7 @@ class UserService
             [
                 'token' => $token,
                 'username' => $username,
-            ]
+            ],
         );
 
         $this->redis->setex($this->tokenCacheKey($token), $this->tokenTtlSeconds, (string) $id);

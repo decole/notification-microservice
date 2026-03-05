@@ -14,14 +14,13 @@ class ApiController
     public function __construct(
         private readonly NotificationService $notificationService,
         private readonly string $defaultTopic,
-    ) {
-    }
+    ) {}
 
     #[Route('/api/send', name: 'api_send', methods: ['POST'])]
     public function send(Request $request): JsonResponse
     {
         $userId = $this->extractUserId($request);
-        if ($userId === null) {
+        if (null === $userId) {
             return new JsonResponse(['error' => 'Unauthorized'], 401);
         }
 
@@ -29,11 +28,11 @@ class ApiController
         $topic = isset($payload['topic']) && is_string($payload['topic']) ? trim($payload['topic']) : '';
         $message = isset($payload['message']) && is_string($payload['message']) ? trim($payload['message']) : '';
 
-        if ($topic === '' || mb_strlen($topic) > 255) {
+        if ('' === $topic || mb_strlen($topic) > 255) {
             return new JsonResponse(['error' => 'Invalid topic'], 422);
         }
 
-        if ($message === '' || mb_strlen($message) > 4096) {
+        if ('' === $message || mb_strlen($message) > 4096) {
             return new JsonResponse(['error' => 'Invalid message length'], 422);
         }
 
@@ -47,11 +46,11 @@ class ApiController
     public function messages(Request $request, ?string $topic = null): JsonResponse
     {
         $userId = $this->extractUserId($request);
-        if ($userId === null) {
+        if (null === $userId) {
             return new JsonResponse(['error' => 'Unauthorized'], 401);
         }
 
-        $topicName = $topic !== null && trim($topic) !== '' ? trim($topic) : $this->defaultTopic;
+        $topicName = null !== $topic && '' !== trim($topic) ? trim($topic) : $this->defaultTopic;
 
         if (mb_strlen($topicName) > 255) {
             return new JsonResponse(['error' => 'Invalid topic'], 422);
@@ -66,7 +65,7 @@ class ApiController
     public function topics(Request $request): JsonResponse
     {
         $userId = $this->extractUserId($request);
-        if ($userId === null) {
+        if (null === $userId) {
             return new JsonResponse(['error' => 'Unauthorized'], 401);
         }
 
@@ -87,7 +86,7 @@ class ApiController
     {
         $raw = trim((string) $request->getContent());
 
-        if ($raw == '') {
+        if ('' == $raw) {
             return [];
         }
 

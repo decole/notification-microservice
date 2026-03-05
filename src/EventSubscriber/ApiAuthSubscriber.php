@@ -14,8 +14,7 @@ class ApiAuthSubscriber implements EventSubscriberInterface
 {
     public function __construct(
         private readonly TokenAuthService $tokenAuthService,
-    ) {
-    }
+    ) {}
 
     public static function getSubscribedEvents(): array
     {
@@ -47,7 +46,7 @@ class ApiAuthSubscriber implements EventSubscriberInterface
         $token = trim($matches[1]);
         $user = $this->tokenAuthService->resolveUserByToken($token);
 
-        if ($user === null) {
+        if (null === $user) {
             $event->setResponse(new JsonResponse(['error' => 'Unauthorized'], 401));
 
             return;

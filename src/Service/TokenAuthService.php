@@ -12,8 +12,7 @@ class TokenAuthService
         private readonly Connection $connection,
         private readonly \Redis $redis,
         private readonly int $tokenTtlSeconds,
-    ) {
-    }
+    ) {}
 
     /**
      * @return array{id:int,username:?string}|null
@@ -23,23 +22,23 @@ class TokenAuthService
         $cacheKey = $this->tokenCacheKey($token);
         $cachedUserId = $this->redis->get($cacheKey);
 
-        if (is_string($cachedUserId) && $cachedUserId !== '') {
+        if (is_string($cachedUserId) && '' !== $cachedUserId) {
             $user = $this->connection->fetchAssociative(
                 'SELECT id, username FROM users WHERE id = :id',
-                ['id' => (int) $cachedUserId]
+                ['id' => (int) $cachedUserId],
             );
 
             if (is_array($user)) {
                 return [
                     'id' => (int) $user['id'],
-                    'username' => $user['username'] !== null ? (string) $user['username'] : null,
+                    'username' => null !== $user['username'] ? (string) $user['username'] : null,
                 ];
             }
         }
 
         $user = $this->connection->fetchAssociative(
             'SELECT id, username FROM users WHERE token = :token',
-            ['token' => $token]
+            ['token' => $token],
         );
 
         if (!is_array($user)) {
@@ -51,7 +50,7 @@ class TokenAuthService
 
         return [
             'id' => $userId,
-            'username' => $user['username'] !== null ? (string) $user['username'] : null,
+            'username' => null !== $user['username'] ? (string) $user['username'] : null,
         ];
     }
 
