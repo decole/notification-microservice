@@ -45,29 +45,6 @@ final class TokenAuthServiceTest extends TestCase
         self::assertSame(['id' => 9, 'username' => 'bob'], $service->resolveUserByToken('token-2'));
     }
 
-    public function testResolveUserByTokenFallsBackToLegacyToken(): void
-    {
-        $connection = $this->createMock(Connection::class);
-        $redis = $this->createMock(\Redis::class);
-
-        $redis->expects($this->once())->method('get')->willReturn(false);
-        $connection
-            ->expects($this->exactly(2))
-            ->method('fetchAssociative')
-            ->willReturnCallback(static function (string $query, array $params): array|false {
-                return match ($query) {
-                    'SELECT id, username FROM users WHERE token_hash = :token_hash' => false,
-                    'SELECT id, username FROM users WHERE token = :token' => ['id' => '11', 'username' => 'legacy'],
-                    default => throw new \LogicException('Unexpected query: '.$query),
-                };
-            });
-        $redis->expects($this->once())->method('setex')->with('auth:token:token-3', 3600, '11');
-
-        $service = new TokenAuthService($connection, $redis, 3600);
-
-        self::assertSame(['id' => 11, 'username' => 'legacy'], $service->resolveUserByToken('token-3'));
-    }
-
     public function testResolveUserByTokenReturnsNullWhenUserDoesNotExist(): void
     {
         $connection = $this->createMock(Connection::class);
@@ -75,7 +52,7 @@ final class TokenAuthServiceTest extends TestCase
 
         $redis->expects($this->once())->method('get')->willReturn(false);
         $connection
-            ->expects($this->exactly(2))
+            ->expects($this->once())
             ->method('fetchAssociative')
             ->willReturn(false);
         $redis->expects($this->never())->method('setex');

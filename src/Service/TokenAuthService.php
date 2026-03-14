@@ -43,13 +43,6 @@ class TokenAuthService
         );
 
         if (!is_array($user)) {
-            $user = $this->connection->fetchAssociative(
-            'SELECT id, username FROM users WHERE token = :token',
-            ['token' => $token],
-            );
-        }
-
-        if (!is_array($user)) {
             return null;
         }
 

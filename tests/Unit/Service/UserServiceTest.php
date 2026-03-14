@@ -19,11 +19,10 @@ final class UserServiceTest extends TestCase
             ->expects($this->once())
             ->method('fetchOne')
             ->with(
-                'INSERT INTO users(token, token_hash, username, created_at) VALUES(:token, :token_hash, :username, NOW()) RETURNING id',
+                'INSERT INTO users(token_hash, username, created_at) VALUES(:token_hash, :username, NOW()) RETURNING id',
                 $this->callback(static function (array $params): bool {
-                    return is_string($params['token'])
-                        && 64 === strlen($params['token'])
-                        && hash('sha256', $params['token']) === $params['token_hash']
+                    return is_string($params['token_hash'])
+                        && 64 === strlen($params['token_hash'])
                         && 'alice' === $params['username'];
                 }),
             )

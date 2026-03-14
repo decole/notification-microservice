@@ -54,8 +54,8 @@ Authorization: Bearer <TOKEN>
 
 На сервере:
 - raw token остаётся клиентским идентификатором
-- для новых и backfilled пользователей дополнительно хранится `token_hash`
-- аутентификация сначала ищет по `token_hash`, затем временно fallback-ится на legacy `token`
+- в БД для авторизации используется `token_hash`
+- raw `token` в БД больше не хранится
 
 ## Регистрация пользователя
 
@@ -145,8 +145,11 @@ curl http://localhost:8080/
 Текущие миграции:
 - [`migrations/Version20260304112000.php`](/home/decole/PhpstormProjects/uberserver-notification/migrations/Version20260304112000.php)
 - [`migrations/Version20260314150000.php`](/home/decole/PhpstormProjects/uberserver-notification/migrations/Version20260314150000.php)
+- [`migrations/Version20260314154000.php`](/home/decole/PhpstormProjects/uberserver-notification/migrations/Version20260314154000.php)
 
-Вторая миграция подготавливает колонку `users.token_hash`.
+Миграции по токенам:
+- `Version20260314150000` добавляет `users.token_hash`
+- `Version20260314154000` завершает переход: `users.token_hash` становится `NOT NULL`, `users.token` удаляется
 
 Применить миграции:
 
@@ -168,12 +171,6 @@ docker compose exec php php bin/console doctrine:migrations:status --no-interact
 docker compose exec php php bin/console app:user:create alice
 ```
 
-Backfill `token_hash` для legacy-пользователей:
-
-```bash
-docker compose exec php php bin/console app:tokens:backfill-hash
-```
-
 ## Тесты
 
 Полный прогон:
@@ -184,9 +181,6 @@ docker compose exec php php vendor/bin/phpunit
 
 Test DB:
 - `notifications_test`
-
-Примечание:
-- API-тесты умеют сами подготовить столбец `token_hash` в test DB, если локальная схема ещё старая
 
 ## Полезно знать
 

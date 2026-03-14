@@ -16,13 +16,13 @@ final class Version20260314150000 extends AbstractMigration
 
     public function up(Schema $schema): void
     {
-        $this->addSql('ALTER TABLE users ADD token_hash VARCHAR(64) DEFAULT NULL');
-        $this->addSql('CREATE UNIQUE INDEX UNIQ_USERS_TOKEN_HASH ON users (token_hash) WHERE token_hash IS NOT NULL');
+        $this->addSql('ALTER TABLE users ADD COLUMN IF NOT EXISTS token_hash VARCHAR(64) DEFAULT NULL');
+        $this->addSql('CREATE UNIQUE INDEX IF NOT EXISTS UNIQ_USERS_TOKEN_HASH ON users (token_hash) WHERE token_hash IS NOT NULL');
     }
 
     public function down(Schema $schema): void
     {
-        $this->addSql('DROP INDEX UNIQ_USERS_TOKEN_HASH');
-        $this->addSql('ALTER TABLE users DROP token_hash');
+        $this->addSql('DROP INDEX IF EXISTS UNIQ_USERS_TOKEN_HASH');
+        $this->addSql('ALTER TABLE users DROP COLUMN IF EXISTS token_hash');
     }
 }

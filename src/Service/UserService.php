@@ -23,9 +23,8 @@ class UserService
         $tokenHash = hash('sha256', $token);
 
         $id = (int) $this->connection->fetchOne(
-            'INSERT INTO users(token, token_hash, username, created_at) VALUES(:token, :token_hash, :username, NOW()) RETURNING id',
+            'INSERT INTO users(token_hash, username, created_at) VALUES(:token_hash, :username, NOW()) RETURNING id',
             [
-                'token' => $token,
                 'token_hash' => $tokenHash,
                 'username' => $username,
             ],

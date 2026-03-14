@@ -52,16 +52,10 @@
 
 ## Токены
 
-Текущий переходный режим:
+Текущая модель:
 - клиентам выдаётся и передаётся raw token
-- в БД хранится:
-  - `token`
-  - `token_hash`
-- lookup сейчас работает так:
-  1. поиск по `token_hash`
-  2. fallback по legacy `token`
-
-Это сделано для обратной совместимости без ротации клиентских токенов.
+- в БД хранится только `token_hash`
+- lookup работает только по `token_hash`
 
 Не менять внешний контракт:
 - клиенты не должны отправлять `token_hash`
@@ -75,12 +69,6 @@
 docker compose exec php php bin/console app:user:create alice
 ```
 
-Backfill legacy `token_hash`:
-
-```bash
-docker compose exec php php bin/console app:tokens:backfill-hash
-```
-
 Перед изменениями команд проверять, что:
 - команда видна в `bin/console list app`
 - команда не ломает `cache:clear`
@@ -90,6 +78,7 @@ docker compose exec php php bin/console app:tokens:backfill-hash
 Схема сейчас описана миграциями:
 - [`Version20260304112000.php`](/home/decole/PhpstormProjects/uberserver-notification/migrations/Version20260304112000.php)
 - [`Version20260314150000.php`](/home/decole/PhpstormProjects/uberserver-notification/migrations/Version20260314150000.php)
+- [`Version20260314154000.php`](/home/decole/PhpstormProjects/uberserver-notification/migrations/Version20260314154000.php)
 
 Изменения схемы:
 - только через новую migration
@@ -143,7 +132,6 @@ docker compose exec php php vendor/bin/phpunit
 ## Что не делать
 
 - не возвращать клиентов на `token_hash`
-- не убирать fallback по `users.token`, пока не подтверждён полный backfill
 - не менять контракт `/api/*` без обновления OpenAPI и functional tests
 - не хардкодить секреты в коде или compose
 - не публиковать `postgres` и `redis` наружу без явной причины
