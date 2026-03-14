@@ -57,6 +57,44 @@ final class RequestRateLimitSubscriberTest extends TestCase
         self::assertTrue($response->headers->has('Retry-After'));
     }
 
+    public function testRequestsFromDifferentClientIpsUseDifferentBuckets(): void
+    {
+        $subscriber = new RequestRateLimitSubscriber(
+            $this->createLimiterFactory(1),
+            $this->createLimiterFactory(10),
+        );
+
+        $firstEvent = $this->createRequestEvent('/api/topics', '10.0.0.50');
+        $subscriber->onKernelRequest($firstEvent);
+        self::assertNull($firstEvent->getResponse());
+
+        $secondEvent = $this->createRequestEvent('/api/topics', '10.0.0.51');
+        $subscriber->onKernelRequest($secondEvent);
+        self::assertNull($secondEvent->getResponse());
+    }
+
+    public function testTrustedProxyUsesForwardedClientIpForRateLimitKey(): void
+    {
+        Request::setTrustedProxies(['10.0.0.1'], Request::HEADER_X_FORWARDED_FOR);
+
+        try {
+            $subscriber = new RequestRateLimitSubscriber(
+                $this->createLimiterFactory(1),
+                $this->createLimiterFactory(10),
+            );
+
+            $firstEvent = $this->createRequestEvent('/api/topics', '10.0.0.1', 'GET', '198.51.100.10');
+            $subscriber->onKernelRequest($firstEvent);
+            self::assertNull($firstEvent->getResponse());
+
+            $secondEvent = $this->createRequestEvent('/api/topics', '10.0.0.1', 'GET', '198.51.100.11');
+            $subscriber->onKernelRequest($secondEvent);
+            self::assertNull($secondEvent->getResponse());
+        } finally {
+            Request::setTrustedProxies([], -1);
+        }
+    }
+
     private function createLimiterFactory(int $limit): RateLimiterFactory
     {
         return new RateLimiterFactory([
@@ -67,9 +105,14 @@ final class RequestRateLimitSubscriberTest extends TestCase
         ], new InMemoryStorage());
     }
 
-    private function createRequestEvent(string $path, string $remoteAddr, string $method = 'GET'): RequestEvent
+    private function createRequestEvent(string $path, string $remoteAddr, string $method = 'GET', ?string $forwardedFor = null): RequestEvent
     {
-        $request = Request::create($path, $method, server: ['REMOTE_ADDR' => $remoteAddr]);
+        $server = ['REMOTE_ADDR' => $remoteAddr];
+        if (null !== $forwardedFor) {
+            $server['HTTP_X_FORWARDED_FOR'] = $forwardedFor;
+        }
+
+        $request = Request::create($path, $method, server: $server);
         $kernel = $this->createStub(HttpKernelInterface::class);
 
         return new RequestEvent($kernel, $request, HttpKernelInterface::MAIN_REQUEST);

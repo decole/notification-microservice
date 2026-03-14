@@ -4,10 +4,12 @@ declare(strict_types=1);
 
 namespace App\Controller;
 
+use App\Input\RegisterInput;
 use App\Service\UserService;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
+use Symfony\Component\HttpKernel\Attribute\MapRequestPayload;
 use Symfony\Component\Routing\Attribute\Route;
 
 final class InternalController extends AbstractController
@@ -19,7 +21,7 @@ final class InternalController extends AbstractController
     ) {}
 
     #[Route('/internal/register', name: 'internal_register', methods: ['POST'])]
-    public function register(Request $request): JsonResponse
+    public function register(Request $request, #[MapRequestPayload] RegisterInput $input): JsonResponse
     {
         if (!$this->internalRegistrationEnabled) {
             return new JsonResponse(['error' => 'Not found'], 404);
@@ -33,29 +35,11 @@ final class InternalController extends AbstractController
             return new JsonResponse(['error' => 'Forbidden'], 403);
         }
 
-        $payload = $this->decodeJson($request);
-        $username = isset($payload['username']) && is_string($payload['username']) && '' !== $payload['username']
-            ? mb_substr($payload['username'], 0, 255)
-            : null;
+        $user = $this->userService->createUser($input->username);
 
-        $user = $this->userService->createUser($username);
-
-        return new JsonResponse(['token' => $user['token']], 201);
-    }
-
-    /**
-     * @return array<string,mixed>
-     */
-    private function decodeJson(Request $request): array
-    {
-        $raw = trim((string) $request->getContent());
-
-        if ('' == $raw) {
-            return [];
-        }
-
-        $data = json_decode($raw, true);
-
-        return is_array($data) ? $data : [];
+        return new JsonResponse([
+            'user' => $user,
+            'token' => $user['token'],
+        ], 201);
     }
 }

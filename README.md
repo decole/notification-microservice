@@ -54,8 +54,9 @@ Authorization: Bearer <TOKEN>
 
 На сервере:
 - raw token остаётся клиентским идентификатором
-- для новых и backfilled пользователей дополнительно хранится `token_hash`
-- аутентификация сначала ищет по `token_hash`, затем временно fallback-ится на legacy `token`
+- в БД для авторизации используется `token_hash`
+- raw `token` в БД больше не хранится
+- Redis используется только как best-effort cache для auth lookup
 
 ## Регистрация пользователя
 
@@ -87,6 +88,8 @@ curl -X POST http://localhost:8080/internal/register \
 ```
 
 Если `INTERNAL_REGISTRATION_ENABLED=0`, endpoint возвращает `404`.
+Если Redis недоступен, регистрация всё равно создаёт пользователя в БД и возвращает токен.
+Payload для `/internal/register` обрабатывается через DTO `RegisterInput` и `MapRequestPayload`.
 
 ## API
 
@@ -100,6 +103,14 @@ curl -X POST http://localhost:8080/api/send \
   -H 'Content-Type: application/json' \
   -d '{"topic":"general","message":"Hello"}'
 ```
+
+Если JSON невалидный, API возвращает:
+
+```json
+{"error":"Invalid JSON"}
+```
+
+Если payload не проходит валидацию DTO `SendInput`, API возвращает `422` и `{"error":"..."}`.
 
 ### Получить непрочитанные сообщения по теме
 
@@ -133,7 +144,9 @@ curl http://localhost:8080/
 - `/api/*` ограничены rate limit: `120 req/min` на клиентский IP
 - `/internal/register` ограничен rate limit: `10 req/min` на клиентский IP
 - ошибки API возвращаются в формате `{"error":"..."}`
+- payload validation для `/api/send` и `/internal/register` выполняется через `MapRequestPayload` + DTO
 - внутренний endpoint `/internal/register` требует секрет для не-localhost запросов
+- при недоступности Redis `/api/*` продолжают аутентифицировать пользователя через PostgreSQL lookup по `token_hash`
 
 ## OpenAPI
 
@@ -145,8 +158,11 @@ curl http://localhost:8080/
 Текущие миграции:
 - [`migrations/Version20260304112000.php`](/home/decole/PhpstormProjects/uberserver-notification/migrations/Version20260304112000.php)
 - [`migrations/Version20260314150000.php`](/home/decole/PhpstormProjects/uberserver-notification/migrations/Version20260314150000.php)
+- [`migrations/Version20260314154000.php`](/home/decole/PhpstormProjects/uberserver-notification/migrations/Version20260314154000.php)
 
-Вторая миграция подготавливает колонку `users.token_hash`.
+Миграции по токенам:
+- `Version20260314150000` добавляет `users.token_hash`
+- `Version20260314154000` завершает переход: `users.token_hash` становится `NOT NULL`, `users.token` удаляется
 
 Применить миграции:
 
@@ -168,11 +184,7 @@ docker compose exec php php bin/console doctrine:migrations:status --no-interact
 docker compose exec php php bin/console app:user:create alice
 ```
 
-Backfill `token_hash` для legacy-пользователей:
-
-```bash
-docker compose exec php php bin/console app:tokens:backfill-hash
-```
+Если Redis недоступен, команда всё равно создаёт пользователя в БД и печатает токен.
 
 ## Тесты
 
@@ -184,9 +196,6 @@ docker compose exec php php vendor/bin/phpunit
 
 Test DB:
 - `notifications_test`
-
-Примечание:
-- API-тесты умеют сами подготовить столбец `token_hash` в test DB, если локальная схема ещё старая
 
 ## Полезно знать
 

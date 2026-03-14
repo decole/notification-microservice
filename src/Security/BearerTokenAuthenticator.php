@@ -17,9 +17,7 @@ use Symfony\Component\Security\Http\EntryPoint\AuthenticationEntryPointInterface
 
 final class BearerTokenAuthenticator extends AbstractAuthenticator implements AuthenticationEntryPointInterface
 {
-    public function __construct(
-        private readonly TokenAuthService $tokenAuthService,
-    ) {}
+    public function __construct(private readonly TokenAuthService $tokenAuthService) {}
 
     public function supports(Request $request): ?bool
     {
@@ -43,8 +41,8 @@ final class BearerTokenAuthenticator extends AbstractAuthenticator implements Au
 
         return new SelfValidatingPassport(
             new UserBadge(
-                $token,
-                static fn () => new ApiUser($user['id'], $user['username'], $token),
+                (string) $user['id'],
+                static fn () => new ApiUser($user['id'], $user['username']),
             ),
         );
     }

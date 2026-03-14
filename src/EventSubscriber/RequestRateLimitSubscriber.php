@@ -47,6 +47,7 @@ final readonly class RequestRateLimitSubscriber implements EventSubscriberInterf
 
     private function consume(RequestEvent $event, RateLimiterFactory $factory, string $key): void
     {
+        $headers = [];
         $limit = $factory->create($key)->consume(1);
 
         if ($limit->isAccepted()) {
@@ -54,11 +55,8 @@ final readonly class RequestRateLimitSubscriber implements EventSubscriberInterf
         }
 
         $retryAfter = $limit->getRetryAfter();
-        $headers = [];
 
-        if (null !== $retryAfter) {
-            $headers['Retry-After'] = (string) max(1, $retryAfter->getTimestamp() - time());
-        }
+        $headers['Retry-After'] = (string) max(1, $retryAfter->getTimestamp() - time());
 
         $event->setResponse(new JsonResponse(['error' => 'Too Many Requests'], 429, $headers));
     }
