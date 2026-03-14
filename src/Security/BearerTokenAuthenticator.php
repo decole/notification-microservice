@@ -43,8 +43,8 @@ final class BearerTokenAuthenticator extends AbstractAuthenticator implements Au
 
         return new SelfValidatingPassport(
             new UserBadge(
-                $token,
-                static fn () => new ApiUser($user['id'], $user['username'], $token),
+                (string) $user['id'],
+                static fn () => new ApiUser($user['id'], $user['username']),
             ),
         );
     }

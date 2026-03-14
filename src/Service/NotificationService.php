@@ -6,11 +6,9 @@ namespace App\Service;
 
 use Doctrine\DBAL\Connection;
 
-class NotificationService
+final readonly class NotificationService
 {
-    public function __construct(
-        private readonly Connection $connection,
-    ) {}
+    public function __construct(private Connection $connection) {}
 
     public function sendMessage(int $senderId, string $topicName, string $content): int
     {

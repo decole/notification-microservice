@@ -56,10 +56,14 @@
 - клиентам выдаётся и передаётся raw token
 - в БД хранится только `token_hash`
 - lookup работает только по `token_hash`
+- Redis не является source of truth и используется только как cache
 
 Не менять внешний контракт:
 - клиенты не должны отправлять `token_hash`
 - клиенты продолжают использовать `Authorization: Bearer <token>`
+
+Operational rule:
+- недоступность Redis не должна ломать регистрацию пользователя, консольную выдачу токена или auth lookup через БД
 
 ## Команды
 
@@ -72,6 +76,7 @@ docker compose exec php php bin/console app:user:create alice
 Перед изменениями команд проверять, что:
 - команда видна в `bin/console list app`
 - команда не ломает `cache:clear`
+- `app:user:create` продолжает печатать token даже при сбое Redis
 
 ## База данных
 
@@ -89,6 +94,7 @@ Hot paths:
 - token lookup в [`TokenAuthService.php`](/home/decole/PhpstormProjects/uberserver-notification/src/Service/TokenAuthService.php)
 
 При изменении этих мест обязательно проверять индексы и влияние на latency.
+Redis в этих местах должен оставаться best-effort optimisation, а не обязательной зависимостью.
 
 ## Docker и окружение
 

@@ -6,16 +6,16 @@ namespace App\Service;
 
 use Doctrine\DBAL\Connection;
 
-class UserService
+final readonly class UserService
 {
     public function __construct(
-        private readonly Connection $connection,
-        private readonly \Redis $redis,
-        private readonly int $tokenTtlSeconds,
+        private Connection $connection,
+        private \Redis $redis,
+        private int $tokenTtlSeconds,
     ) {}
 
     /**
-     * @return array{id:int,token:string,username:?string}
+     * @return array{id:int,username:?string}
      */
     public function createUser(?string $username = null): array
     {
@@ -30,7 +30,11 @@ class UserService
             ],
         );
 
-        $this->redis->setex($this->tokenCacheKey($token), $this->tokenTtlSeconds, (string) $id);
+        try {
+            $this->redis->setex($this->tokenCacheKey($token), $this->tokenTtlSeconds, (string) $id);
+        } catch (\RedisException) {
+            // Redis is only an auth cache. User creation must still succeed.
+        }
 
         return [
             'id' => $id,

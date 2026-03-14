@@ -11,7 +11,6 @@ final class ApiUser implements UserInterface
     public function __construct(
         private readonly int $id,
         private readonly ?string $username,
-        private readonly string $token,
     ) {}
 
     public function getId(): int
@@ -35,6 +34,6 @@ final class ApiUser implements UserInterface
 
     public function getUserIdentifier(): string
     {
-        return $this->token;
+        return (string) $this->id;
     }
 }

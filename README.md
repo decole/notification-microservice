@@ -56,6 +56,7 @@ Authorization: Bearer <TOKEN>
 - raw token остаётся клиентским идентификатором
 - в БД для авторизации используется `token_hash`
 - raw `token` в БД больше не хранится
+- Redis используется только как best-effort cache для auth lookup
 
 ## Регистрация пользователя
 
@@ -87,6 +88,7 @@ curl -X POST http://localhost:8080/internal/register \
 ```
 
 Если `INTERNAL_REGISTRATION_ENABLED=0`, endpoint возвращает `404`.
+Если Redis недоступен, регистрация всё равно создаёт пользователя в БД и возвращает токен.
 
 ## API
 
@@ -134,6 +136,7 @@ curl http://localhost:8080/
 - `/internal/register` ограничен rate limit: `10 req/min` на клиентский IP
 - ошибки API возвращаются в формате `{"error":"..."}`
 - внутренний endpoint `/internal/register` требует секрет для не-localhost запросов
+- при недоступности Redis `/api/*` продолжают аутентифицировать пользователя через PostgreSQL lookup по `token_hash`
 
 ## OpenAPI
 
@@ -170,6 +173,8 @@ docker compose exec php php bin/console doctrine:migrations:status --no-interact
 ```bash
 docker compose exec php php bin/console app:user:create alice
 ```
+
+Если Redis недоступен, команда всё равно создаёт пользователя в БД и печатает токен.
 
 ## Тесты
 

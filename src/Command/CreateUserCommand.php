@@ -12,23 +12,22 @@ use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Style\SymfonyStyle;
 
-#[AsCommand(name: 'app:user:create', aliases: ['app:create-user'], description: 'Create user and print access token')]
-class CreateUserCommand extends Command
+#[AsCommand(name: 'app:user:create', description: 'Create user and print access token', aliases: ['app:create-user'])]
+final class CreateUserCommand extends Command
 {
-    public function __construct(
-        private readonly UserService $userService,
-    ) {
+    public function __construct(private readonly UserService $userService) {
         parent::__construct();
     }
 
-    protected function configure(): void
+    public function configure(): void
     {
         $this->addArgument('username', InputArgument::OPTIONAL, 'Display username');
     }
 
-    protected function execute(InputInterface $input, OutputInterface $output): int
+    public function execute(InputInterface $input, OutputInterface $output): int
     {
         $io = new SymfonyStyle($input, $output);
+
         $username = $input->getArgument('username');
 
         $user = $this->userService->createUser(is_string($username) && '' !== $username ? $username : null);

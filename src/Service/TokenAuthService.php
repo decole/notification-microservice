@@ -20,7 +20,13 @@ class TokenAuthService
     public function resolveUserByToken(string $token): ?array
     {
         $cacheKey = $this->tokenCacheKey($token);
-        $cachedUserId = $this->redis->get($cacheKey);
+        $cachedUserId = false;
+
+        try {
+            $cachedUserId = $this->redis->get($cacheKey);
+        } catch (\RedisException) {
+            $cachedUserId = false;
+        }
 
         if (is_string($cachedUserId) && '' !== $cachedUserId) {
             $user = $this->connection->fetchAssociative(
@@ -47,7 +53,11 @@ class TokenAuthService
         }
 
         $userId = (int) $user['id'];
-        $this->redis->setex($cacheKey, $this->tokenTtlSeconds, (string) $userId);
+        try {
+            $this->redis->setex($cacheKey, $this->tokenTtlSeconds, (string) $userId);
+        } catch (\RedisException) {
+            // Redis is only an auth cache. DB lookup already succeeded.
+        }
 
         return [
             'id' => $userId,

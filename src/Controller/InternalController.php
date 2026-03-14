@@ -18,6 +18,9 @@ final class InternalController extends AbstractController
         private readonly bool $internalRegistrationEnabled,
     ) {}
 
+    /**
+     * @throws \JsonException
+     */
     #[Route('/internal/register', name: 'internal_register', methods: ['POST'])]
     public function register(Request $request): JsonResponse
     {
@@ -45,16 +48,17 @@ final class InternalController extends AbstractController
 
     /**
      * @return array<string,mixed>
+     * @throws \JsonException
      */
     private function decodeJson(Request $request): array
     {
         $raw = trim((string) $request->getContent());
 
-        if ('' == $raw) {
+        if ('' === $raw) {
             return [];
         }
 
-        $data = json_decode($raw, true);
+        $data = json_decode($raw, true, 512, JSON_THROW_ON_ERROR);
 
         return is_array($data) ? $data : [];
     }

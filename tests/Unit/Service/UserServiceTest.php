@@ -45,4 +45,28 @@ final class UserServiceTest extends TestCase
         self::assertIsString($result['token']);
         self::assertSame(64, strlen($result['token']));
     }
+
+    public function testCreateUserStillReturnsTokenWhenRedisIsUnavailable(): void
+    {
+        $connection = $this->createMock(Connection::class);
+        $redis = $this->createMock(\Redis::class);
+
+        $connection
+            ->expects($this->once())
+            ->method('fetchOne')
+            ->willReturn('15');
+
+        $redis
+            ->expects($this->once())
+            ->method('setex')
+            ->willThrowException(new \RedisException('redis down'));
+
+        $service = new UserService($connection, $redis, 3600);
+        $result = $service->createUser('alice');
+
+        self::assertSame(15, $result['id']);
+        self::assertSame('alice', $result['username']);
+        self::assertIsString($result['token']);
+        self::assertSame(64, strlen($result['token']));
+    }
 }

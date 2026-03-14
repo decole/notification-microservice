@@ -61,4 +61,44 @@ final class TokenAuthServiceTest extends TestCase
 
         self::assertNull($service->resolveUserByToken('missing-token'));
     }
+
+    public function testResolveUserByTokenFallsBackToDbWhenRedisIsUnavailable(): void
+    {
+        $connection = $this->createMock(Connection::class);
+        $redis = $this->createMock(\Redis::class);
+
+        $redis->expects($this->once())->method('get')->willThrowException(new \RedisException('redis down'));
+        $connection
+            ->expects($this->once())
+            ->method('fetchAssociative')
+            ->with('SELECT id, username FROM users WHERE token_hash = :token_hash', ['token_hash' => hash('sha256', 'token-3')])
+            ->willReturn(['id' => '11', 'username' => 'carol']);
+        $redis->expects($this->once())->method('setex')->with('auth:token:token-3', 3600, '11');
+
+        $service = new TokenAuthService($connection, $redis, 3600);
+
+        self::assertSame(['id' => 11, 'username' => 'carol'], $service->resolveUserByToken('token-3'));
+    }
+
+    public function testResolveUserByTokenReturnsUserWhenRedisSetFails(): void
+    {
+        $connection = $this->createMock(Connection::class);
+        $redis = $this->createMock(\Redis::class);
+
+        $redis->expects($this->once())->method('get')->willReturn(false);
+        $connection
+            ->expects($this->once())
+            ->method('fetchAssociative')
+            ->with('SELECT id, username FROM users WHERE token_hash = :token_hash', ['token_hash' => hash('sha256', 'token-4')])
+            ->willReturn(['id' => '13', 'username' => 'dave']);
+        $redis
+            ->expects($this->once())
+            ->method('setex')
+            ->with('auth:token:token-4', 3600, '13')
+            ->willThrowException(new \RedisException('redis down'));
+
+        $service = new TokenAuthService($connection, $redis, 3600);
+
+        self::assertSame(['id' => 13, 'username' => 'dave'], $service->resolveUserByToken('token-4'));
+    }
 }
