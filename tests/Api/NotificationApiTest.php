@@ -6,6 +6,7 @@ namespace App\Tests\Api;
 
 use App\Service\UserService;
 use Doctrine\DBAL\Connection;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 
@@ -57,6 +58,32 @@ final class NotificationApiTest extends WebTestCase
 
         $cachedUserId = $this->redis->get(sprintf('auth:token:%s', $data['token']));
         self::assertSame((string) $row['id'], $cachedUserId);
+    }
+
+    public function testInternalRegisterRejectsRemoteRequestWithoutSecret(): void
+    {
+        $this->client->request(
+            'POST',
+            '/internal/register',
+            server: ['REMOTE_ADDR' => '10.10.10.10', 'CONTENT_TYPE' => 'application/json'],
+            content: json_encode(['username' => 'alice'], JSON_THROW_ON_ERROR),
+        );
+
+        self::assertResponseStatusCodeSame(403);
+        self::assertSame(['error' => 'Forbidden'], $this->decodeResponse());
+    }
+
+    public function testInternalRegisterRejectsRemoteRequestWithWrongSecret(): void
+    {
+        $this->client->request(
+            'POST',
+            '/internal/register',
+            server: ['REMOTE_ADDR' => '10.10.10.10', 'HTTP_X_INTERNAL_SECRET' => 'wrong-secret', 'CONTENT_TYPE' => 'application/json'],
+            content: json_encode(['username' => 'alice'], JSON_THROW_ON_ERROR),
+        );
+
+        self::assertResponseStatusCodeSame(403);
+        self::assertSame(['error' => 'Forbidden'], $this->decodeResponse());
     }
 
     public function testSendAndReceiveUnreadMessagesWithMarkAsRead(): void
@@ -135,6 +162,85 @@ final class NotificationApiTest extends WebTestCase
         self::assertContains('beta', $payload['topics']);
     }
 
+    public function testApiRejectsMissingAuthorizationHeader(): void
+    {
+        $this->client->request('GET', '/api/topics');
+
+        self::assertResponseStatusCodeSame(401);
+        self::assertSame(['error' => 'Unauthorized'], $this->decodeResponse());
+    }
+
+    public function testApiRejectsMalformedAuthorizationHeader(): void
+    {
+        $this->client->request('GET', '/api/topics', server: ['HTTP_AUTHORIZATION' => 'Token abc']);
+
+        self::assertResponseStatusCodeSame(401);
+        self::assertSame(['error' => 'Unauthorized'], $this->decodeResponse());
+    }
+
+    public function testApiRejectsUnknownAuthorizationToken(): void
+    {
+        $this->client->request('GET', '/api/topics', server: ['HTTP_AUTHORIZATION' => 'Bearer missing-token']);
+
+        self::assertResponseStatusCodeSame(401);
+        self::assertSame(['error' => 'Unauthorized'], $this->decodeResponse());
+    }
+
+    #[DataProvider('provideInvalidSendPayloads')]
+    public function testSendRejectsInvalidPayloads(array $payload): void
+    {
+        $token = $this->registerUser('sender');
+
+        $this->client->request(
+            'POST',
+            '/api/send',
+            server: $this->authServer($token),
+            content: json_encode($payload, JSON_THROW_ON_ERROR),
+        );
+
+        self::assertResponseStatusCodeSame(422);
+    }
+
+    public function testSendRejectsInvalidJsonPayload(): void
+    {
+        $token = $this->registerUser('sender');
+
+        $this->client->request(
+            'POST',
+            '/api/send',
+            server: $this->authServer($token),
+            content: '{invalid-json',
+        );
+
+        self::assertResponseStatusCodeSame(422);
+        self::assertSame(['error' => 'Invalid topic'], $this->decodeResponse());
+    }
+
+    public function testMessagesRejectsTopicThatIsTooLong(): void
+    {
+        $token = $this->registerUser('reader');
+
+        $this->client->request('GET', '/api/messages/'.str_repeat('a', 256), server: $this->authServer($token));
+
+        self::assertResponseStatusCodeSame(422);
+        self::assertSame(['error' => 'Invalid topic'], $this->decodeResponse());
+    }
+
+    /**
+     * @return iterable<string, array{0: array<string, mixed>}>
+     */
+    public static function provideInvalidSendPayloads(): iterable
+    {
+        yield 'missing topic' => [[]];
+        yield 'blank topic' => [['topic' => '   ', 'message' => 'Hello']];
+        yield 'topic too long' => [['topic' => str_repeat('a', 256), 'message' => 'Hello']];
+        yield 'missing message' => [['topic' => 'work']];
+        yield 'blank message' => [['topic' => 'work', 'message' => '']];
+        yield 'message too long' => [['topic' => 'work', 'message' => str_repeat('m', 4097)]];
+        yield 'non string topic' => [['topic' => 123, 'message' => 'Hello']];
+        yield 'non string message' => [['topic' => 'work', 'message' => ['Hello']]];
+    }
+
     private function registerUser(string $username): string
     {
         $user = $this->userService->createUser($username);
@@ -162,5 +268,15 @@ final class NotificationApiTest extends WebTestCase
         if (is_array($keys) && [] !== $keys) {
             $this->redis->del($keys);
         }
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function decodeResponse(): array
+    {
+        $content = $this->client->getResponse()->getContent();
+
+        return json_decode($content ?: '{}', true, 512, JSON_THROW_ON_ERROR);
     }
 }

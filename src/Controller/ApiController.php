@@ -5,11 +5,15 @@ declare(strict_types=1);
 namespace App\Controller;
 
 use App\Service\NotificationService;
+use App\Security\ApiUser;
+use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
+use Symfony\Component\Security\Http\Attribute\IsGranted;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
-use Symfony\Component\Routing\Annotation\Route;
+use Symfony\Component\Routing\Attribute\Route;
 
-class ApiController
+#[IsGranted('ROLE_API_USER')]
+final class ApiController extends AbstractController
 {
     public function __construct(
         private readonly NotificationService $notificationService,
@@ -19,10 +23,7 @@ class ApiController
     #[Route('/api/send', name: 'api_send', methods: ['POST'])]
     public function send(Request $request): JsonResponse
     {
-        $userId = $this->extractUserId($request);
-        if (null === $userId) {
-            return new JsonResponse(['error' => 'Unauthorized'], 401);
-        }
+        $userId = $this->requireApiUser()->getId();
 
         $payload = $this->decodeJson($request);
         $topic = isset($payload['topic']) && is_string($payload['topic']) ? trim($payload['topic']) : '';
@@ -45,10 +46,7 @@ class ApiController
     #[Route('/api/messages/{topic}', name: 'api_messages_topic', methods: ['GET'])]
     public function messages(Request $request, ?string $topic = null): JsonResponse
     {
-        $userId = $this->extractUserId($request);
-        if (null === $userId) {
-            return new JsonResponse(['error' => 'Unauthorized'], 401);
-        }
+        $userId = $this->requireApiUser()->getId();
 
         $topicName = null !== $topic && '' !== trim($topic) ? trim($topic) : $this->defaultTopic;
 
@@ -62,21 +60,20 @@ class ApiController
     }
 
     #[Route('/api/topics', name: 'api_topics', methods: ['GET'])]
-    public function topics(Request $request): JsonResponse
+    public function topics(): JsonResponse
     {
-        $userId = $this->extractUserId($request);
-        if (null === $userId) {
-            return new JsonResponse(['error' => 'Unauthorized'], 401);
-        }
-
         return new JsonResponse(['topics' => $this->notificationService->listTopics()]);
     }
 
-    private function extractUserId(Request $request): ?int
+    private function requireApiUser(): ApiUser
     {
-        $value = $request->attributes->get('auth_user_id');
+        $user = $this->getUser();
 
-        return is_int($value) ? $value : null;
+        if (!$user instanceof ApiUser) {
+            throw $this->createAccessDeniedException('Unauthorized');
+        }
+
+        return $user;
     }
 
     /**
