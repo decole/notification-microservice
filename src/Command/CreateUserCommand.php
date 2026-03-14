@@ -31,6 +31,10 @@ final class CreateUserCommand extends Command
 
         $username = $input->getArgument('username');
 
+        if (null === $username) {
+            $username = $io->ask('Enter username');
+        }
+
         $user = $this->userService->createUser(is_string($username) && '' !== $username ? $username : null);
 
         $io->success(sprintf('User created. Token: %s', $user['token']));

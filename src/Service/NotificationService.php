@@ -12,9 +12,11 @@ final readonly class NotificationService
 
     public function sendMessage(int $senderId, string $topicName, string $content): int
     {
-        $topicId = $this->notificationRepository->findOrCreateTopicId($topicName);
-
-        return $this->notificationRepository->createMessage($topicId, $senderId, $content);
+        return $this->notificationRepository->createMessage(
+            topicId: $this->notificationRepository->findOrCreateTopicId($topicName),
+            senderId: $senderId,
+            content: $content,
+        );
     }
 
     /**

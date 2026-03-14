@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: Notification Microservice API
-  version: 1.2.0
+  version: 1.3.0
   description: |
     Микросервис публичных каналов с отслеживанием непрочитанных сообщений.
     Все маршруты `/api/*` защищены Bearer token аутентификацией.
@@ -128,8 +128,20 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/RegisterResponse'
+        '400':
+          description: Invalid JSON
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
         '403':
           description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '422':
+          description: Validation error
           content:
             application/json:
               schema:
@@ -166,6 +178,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/SendResponse'
+        '400':
+          description: Invalid JSON
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
         '401':
           description: Unauthorized
           content:

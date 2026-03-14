@@ -17,9 +17,7 @@ use Symfony\Component\Security\Http\EntryPoint\AuthenticationEntryPointInterface
 
 final class BearerTokenAuthenticator extends AbstractAuthenticator implements AuthenticationEntryPointInterface
 {
-    public function __construct(
-        private readonly TokenAuthService $tokenAuthService,
-    ) {}
+    public function __construct(private readonly TokenAuthService $tokenAuthService) {}
 
     public function supports(Request $request): ?bool
     {

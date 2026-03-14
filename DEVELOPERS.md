@@ -7,14 +7,18 @@
 ## Актуальная архитектура
 
 - [`src/Controller`](/home/decole/PhpstormProjects/uberserver-notification/src/Controller) — HTTP endpoints
-- [`src/Service`](/home/decole/PhpstormProjects/uberserver-notification/src/Service) — бизнес-логика, DBAL-запросы, auth lookup
+- [`src/Service`](/home/decole/PhpstormProjects/uberserver-notification/src/Service) — бизнес-логика и orchestration
+- [`src/Repository`](/home/decole/PhpstormProjects/uberserver-notification/src/Repository) — PostgreSQL access через интерфейсы
+- [`src/Input`](/home/decole/PhpstormProjects/uberserver-notification/src/Input) — request DTO для `MapRequestPayload`
 - [`src/Security`](/home/decole/PhpstormProjects/uberserver-notification/src/Security) — Symfony Security user + Bearer authenticator
 - [`src/EventSubscriber/RequestRateLimitSubscriber.php`](/home/decole/PhpstormProjects/uberserver-notification/src/EventSubscriber/RequestRateLimitSubscriber.php) — rate limiting на `kernel.request`
+- [`src/EventSubscriber/PayloadExceptionSubscriber.php`](/home/decole/PhpstormProjects/uberserver-notification/src/EventSubscriber/PayloadExceptionSubscriber.php) — нормализация ошибок `MapRequestPayload`
 - [`src/Command`](/home/decole/PhpstormProjects/uberserver-notification/src/Command) — консольные команды
 - [`migrations`](/home/decole/PhpstormProjects/uberserver-notification/migrations) — миграции БД
 - [`docs/openapi.yaml`](/home/decole/PhpstormProjects/uberserver-notification/docs/openapi.yaml) — API contract
 - [`tests/Api`](/home/decole/PhpstormProjects/uberserver-notification/tests/Api) — functional API tests
 - [`tests/Unit`](/home/decole/PhpstormProjects/uberserver-notification/tests/Unit) — unit tests сервисов и subscriber-ов
+- [`tests/Repository`](/home/decole/PhpstormProjects/uberserver-notification/tests/Repository) — integration tests репозиториев на PostgreSQL
 
 Старого `ApiAuthSubscriber` в проекте больше нет. `/api/*` теперь живут через Symfony Security firewall и [`BearerTokenAuthenticator.php`](/home/decole/PhpstormProjects/uberserver-notification/src/Security/BearerTokenAuthenticator.php).
 
@@ -35,6 +39,7 @@
 - любые изменения поведения должны сопровождаться тестами
 - любые изменения схемы БД только через миграции
 - не возвращать произвольные форматы ошибок для API, использовать `{"error":"..."}`
+- SQL к PostgreSQL должен жить в [`src/Repository`](/home/decole/PhpstormProjects/uberserver-notification/src/Repository), не в сервисах и не в контроллерах
 
 ## Security модель
 
@@ -46,6 +51,10 @@
   - не входит в security firewall
   - защищён секретом `X-Internal-Secret` для non-localhost
   - может быть полностью выключен через `INTERNAL_REGISTRATION_ENABLED=0`
+- payload validation:
+  - `/api/send` использует [`SendInput.php`](/home/decole/PhpstormProjects/uberserver-notification/src/Input/SendInput.php)
+  - `/internal/register` использует [`RegisterInput.php`](/home/decole/PhpstormProjects/uberserver-notification/src/Input/RegisterInput.php)
+  - ошибки `MapRequestPayload` нормализуются через [`PayloadExceptionSubscriber.php`](/home/decole/PhpstormProjects/uberserver-notification/src/EventSubscriber/PayloadExceptionSubscriber.php)
 - rate limiting:
   - `/api/*` — `120 req/min`
   - `/internal/register` — `10 req/min`
@@ -132,8 +141,10 @@ docker compose exec php php vendor/bin/phpunit
 
 Тестовые группы:
 - [`tests/Api/NotificationApiTest.php`](/home/decole/PhpstormProjects/uberserver-notification/tests/Api/NotificationApiTest.php)
+- [`tests/Api/RedisFailureApiTest.php`](/home/decole/PhpstormProjects/uberserver-notification/tests/Api/RedisFailureApiTest.php)
 - [`tests/Unit/Service`](/home/decole/PhpstormProjects/uberserver-notification/tests/Unit/Service)
 - [`tests/Unit/EventSubscriber`](/home/decole/PhpstormProjects/uberserver-notification/tests/Unit/EventSubscriber)
+- [`tests/Repository`](/home/decole/PhpstormProjects/uberserver-notification/tests/Repository)
 
 ## Что не делать
 

@@ -40,7 +40,7 @@ final class NotificationApiTest extends WebTestCase
         $this->client->request(
             'POST',
             '/internal/register',
-            server: ['HTTP_X_INTERNAL_SECRET' => 'internal-secret', 'CONTENT_TYPE' => 'application/json'],
+            server: $this->internalRegisterServer(),
             content: json_encode(['username' => 'alice'], JSON_THROW_ON_ERROR),
         );
 
@@ -88,6 +88,46 @@ final class NotificationApiTest extends WebTestCase
 
         self::assertResponseStatusCodeSame(403);
         self::assertSame(['error' => 'Forbidden'], $this->decodeResponse());
+    }
+
+    #[DataProvider('provideInvalidRegisterPayloads')]
+    public function testInternalRegisterRejectsInvalidPayloads(array $payload): void
+    {
+        $this->client->request(
+            'POST',
+            '/internal/register',
+            server: $this->internalRegisterServer(),
+            content: json_encode($payload, JSON_THROW_ON_ERROR),
+        );
+
+        self::assertResponseStatusCodeSame(422);
+        self::assertSame(['error' => 'Invalid username'], $this->decodeResponse());
+    }
+
+    public function testInternalRegisterRejectsInvalidJsonPayload(): void
+    {
+        $this->client->request(
+            'POST',
+            '/internal/register',
+            server: $this->internalRegisterServer(),
+            content: '{invalid-json',
+        );
+
+        self::assertResponseStatusCodeSame(400);
+        self::assertSame(['error' => 'Invalid JSON'], $this->decodeResponse());
+    }
+
+    public function testInternalRegisterRejectsMissingUsernameField(): void
+    {
+        $this->client->request(
+            'POST',
+            '/internal/register',
+            server: $this->internalRegisterServer(),
+            content: json_encode([], JSON_THROW_ON_ERROR),
+        );
+
+        self::assertResponseStatusCodeSame(422);
+        self::assertSame(['error' => 'Invalid username'], $this->decodeResponse());
     }
 
     public function testSendAndReceiveUnreadMessagesWithMarkAsRead(): void
@@ -216,8 +256,8 @@ final class NotificationApiTest extends WebTestCase
             content: '{invalid-json',
         );
 
-        self::assertResponseStatusCodeSame(422);
-        self::assertSame(['error' => 'Invalid topic'], $this->decodeResponse());
+        self::assertResponseStatusCodeSame(400);
+        self::assertSame(['error' => 'Invalid JSON'], $this->decodeResponse());
     }
 
     public function testMessagesRejectsTopicThatIsTooLong(): void
@@ -245,11 +285,37 @@ final class NotificationApiTest extends WebTestCase
         yield 'non string message' => [['topic' => 'work', 'message' => ['Hello']]];
     }
 
+    /**
+     * @return iterable<string, array{0: array<string, mixed>}>
+     */
+    public static function provideInvalidRegisterPayloads(): iterable
+    {
+        yield 'blank username' => [['username' => '   ']];
+        yield 'null username' => [['username' => null]];
+        yield 'username too long' => [['username' => str_repeat('a', 256)]];
+        yield 'non string username' => [['username' => ['alice']]];
+    }
+
     private function registerUser(string $username): string
     {
         $user = $this->userService->createUser($username);
 
         return (string) $user['token'];
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    private function internalRegisterServer(): array
+    {
+        static $counter = 10;
+        ++$counter;
+
+        return [
+            'REMOTE_ADDR' => sprintf('10.10.10.%d', $counter),
+            'HTTP_X_INTERNAL_SECRET' => 'internal-secret',
+            'CONTENT_TYPE' => 'application/json',
+        ];
     }
 
     /**

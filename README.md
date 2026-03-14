@@ -89,6 +89,7 @@ curl -X POST http://localhost:8080/internal/register \
 
 Если `INTERNAL_REGISTRATION_ENABLED=0`, endpoint возвращает `404`.
 Если Redis недоступен, регистрация всё равно создаёт пользователя в БД и возвращает токен.
+Payload для `/internal/register` обрабатывается через DTO `RegisterInput` и `MapRequestPayload`.
 
 ## API
 
@@ -102,6 +103,14 @@ curl -X POST http://localhost:8080/api/send \
   -H 'Content-Type: application/json' \
   -d '{"topic":"general","message":"Hello"}'
 ```
+
+Если JSON невалидный, API возвращает:
+
+```json
+{"error":"Invalid JSON"}
+```
+
+Если payload не проходит валидацию DTO `SendInput`, API возвращает `422` и `{"error":"..."}`.
 
 ### Получить непрочитанные сообщения по теме
 
@@ -135,6 +144,7 @@ curl http://localhost:8080/
 - `/api/*` ограничены rate limit: `120 req/min` на клиентский IP
 - `/internal/register` ограничен rate limit: `10 req/min` на клиентский IP
 - ошибки API возвращаются в формате `{"error":"..."}`
+- payload validation для `/api/send` и `/internal/register` выполняется через `MapRequestPayload` + DTO
 - внутренний endpoint `/internal/register` требует секрет для не-localhost запросов
 - при недоступности Redis `/api/*` продолжают аутентифицировать пользователя через PostgreSQL lookup по `token_hash`
 
