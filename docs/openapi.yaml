@@ -1,9 +1,10 @@
 openapi: 3.0.3
 info:
   title: Notification Microservice API
-  version: 1.0.0
+  version: 1.2.0
   description: |
     Микросервис публичных каналов с отслеживанием непрочитанных сообщений.
+    Все маршруты `/api/*` защищены Bearer token аутентификацией.
 servers:
   - url: http://localhost:8080
 
@@ -18,6 +19,9 @@ components:
       scheme: bearer
       bearerFormat: Token
   schemas:
+    WelcomePage:
+      type: string
+      description: HTML welcome page.
     Error:
       type: object
       properties:
@@ -86,6 +90,20 @@ components:
       required: [topics]
 
 paths:
+  /:
+    get:
+      tags: [API]
+      summary: Welcome page
+      responses:
+        '200':
+          description: HTML welcome page
+          content:
+            text/html:
+              schema:
+                $ref: '#/components/schemas/WelcomePage'
+        '405':
+          description: Method not allowed
+
   /internal/register:
     post:
       tags: [Internal]
@@ -112,6 +130,12 @@ paths:
                 $ref: '#/components/schemas/RegisterResponse'
         '403':
           description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '429':
+          description: Too many requests
           content:
             application/json:
               schema:
@@ -154,6 +178,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+        '429':
+          description: Too many requests
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
 
   /api/messages:
     get:
@@ -170,6 +200,12 @@ paths:
                 $ref: '#/components/schemas/MessagesResponse'
         '401':
           description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '429':
+          description: Too many requests
           content:
             application/json:
               schema:
@@ -207,6 +243,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+        '429':
+          description: Too many requests
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
 
   /api/topics:
     get:
@@ -223,6 +265,12 @@ paths:
                 $ref: '#/components/schemas/TopicsResponse'
         '401':
           description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '429':
+          description: Too many requests
           content:
             application/json:
               schema:

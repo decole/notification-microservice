@@ -9,6 +9,8 @@ services:
     autowire: true
     autoconfigure: true
     bind:
+      Symfony\Component\RateLimiter\RateLimiterFactory $apiRequestLimiter: '@limiter.api_request'
+      Symfony\Component\RateLimiter\RateLimiterFactory $internalRegisterLimiter: '@limiter.internal_register'
       int $tokenTtlSeconds: '%token_ttl_seconds%'
       string $defaultTopic: '%default_topic%'
       string $internalApiSecret: '%internal_api_secret%'

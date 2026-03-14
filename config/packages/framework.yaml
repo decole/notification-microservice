@@ -4,6 +4,15 @@ framework:
   handle_all_throwables: true
   php_errors:
     log: true
+  rate_limiter:
+    api_request:
+      policy: 'fixed_window'
+      limit: 120
+      interval: '1 minute'
+    internal_register:
+      policy: 'fixed_window'
+      limit: 10
+      interval: '1 minute'
   serializer:
     enabled: true
   validation:

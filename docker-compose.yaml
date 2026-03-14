@@ -12,8 +12,8 @@ services:
       REDIS_PORT: 6379
       TOKEN_TTL_SECONDS: 2592000
       DEFAULT_TOPIC: default
-      INTERNAL_API_SECRET: internal-secret
-      INTERNAL_REGISTRATION_ENABLED: 0
+      INTERNAL_API_SECRET: ${INTERNAL_API_SECRET}
+      INTERNAL_REGISTRATION_ENABLED: ${INTERNAL_REGISTRATION_ENABLED:-0}
     depends_on:
       - postgres
       - redis
@@ -38,8 +38,6 @@ services:
       POSTGRES_DB: notifications
       POSTGRES_USER: app
       POSTGRES_PASSWORD: app
-    ports:
-      - "5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
     networks:
@@ -48,8 +46,6 @@ services:
   redis:
     image: redis:7-alpine
     command: ["redis-server", "--maxmemory-policy", "allkeys-lru"]
-    ports:
-      - "6379:6379"
     volumes:
       - redisdata:/data
     networks:

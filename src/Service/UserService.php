@@ -20,11 +20,13 @@ class UserService
     public function createUser(?string $username = null): array
     {
         $token = bin2hex(random_bytes(32));
+        $tokenHash = hash('sha256', $token);
 
         $id = (int) $this->connection->fetchOne(
-            'INSERT INTO users(token, username, created_at) VALUES(:token, :username, NOW()) RETURNING id',
+            'INSERT INTO users(token, token_hash, username, created_at) VALUES(:token, :token_hash, :username, NOW()) RETURNING id',
             [
                 'token' => $token,
+                'token_hash' => $tokenHash,
                 'username' => $username,
             ],
         );

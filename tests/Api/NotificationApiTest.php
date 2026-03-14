@@ -32,6 +32,7 @@ final class NotificationApiTest extends WebTestCase
         $this->redis = $container->get(\Redis::class);
         $this->userService = $container->get(UserService::class);
 
+        $this->ensureTokenHashColumn();
         $this->resetStorage();
     }
 
@@ -52,9 +53,13 @@ final class NotificationApiTest extends WebTestCase
         self::assertIsString($data['token']);
         self::assertNotSame('', $data['token']);
 
-        $row = $this->connection->fetchAssociative('SELECT id, username FROM users WHERE token = :token', ['token' => $data['token']]);
+        $row = $this->connection->fetchAssociative(
+            'SELECT id, username, token_hash FROM users WHERE token = :token',
+            ['token' => $data['token']],
+        );
         self::assertIsArray($row);
         self::assertSame('alice', $row['username']);
+        self::assertSame(hash('sha256', $data['token']), $row['token_hash']);
 
         $cachedUserId = $this->redis->get(sprintf('auth:token:%s', $data['token']));
         self::assertSame((string) $row['id'], $cachedUserId);
@@ -186,6 +191,18 @@ final class NotificationApiTest extends WebTestCase
         self::assertSame(['error' => 'Unauthorized'], $this->decodeResponse());
     }
 
+    public function testApiAuthenticatesLegacyTokenWithoutTokenHash(): void
+    {
+        $token = $this->registerUser('legacy-user');
+        $this->connection->executeStatement('UPDATE users SET token_hash = NULL WHERE token = :token', ['token' => $token]);
+        $this->redis->del(sprintf('auth:token:%s', $token));
+
+        $this->client->request('GET', '/api/topics', server: $this->authServer($token));
+
+        self::assertResponseIsSuccessful();
+        self::assertArrayHasKey('topics', $this->decodeResponse());
+    }
+
     #[DataProvider('provideInvalidSendPayloads')]
     public function testSendRejectsInvalidPayloads(array $payload): void
     {
@@ -278,5 +295,10 @@ final class NotificationApiTest extends WebTestCase
         $content = $this->client->getResponse()->getContent();
 
         return json_decode($content ?: '{}', true, 512, JSON_THROW_ON_ERROR);
+    }
+
+    private function ensureTokenHashColumn(): void
+    {
+        $this->connection->executeStatement('ALTER TABLE users ADD COLUMN IF NOT EXISTS token_hash VARCHAR(64) DEFAULT NULL');
     }
 }
