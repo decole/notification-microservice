@@ -224,7 +224,7 @@ final class NotificationApiTest extends WebTestCase
     {
         $token = $this->registerUser('reader');
 
-        $this->client->request('GET', '/api/messages/'.str_repeat('a', 256), server: $this->authServer($token));
+        $this->client->request('GET', '/api/messages/' . str_repeat('a', 256), server: $this->authServer($token));
 
         self::assertResponseStatusCodeSame(422);
         self::assertSame(['error' => 'Invalid topic'], $this->decodeResponse());

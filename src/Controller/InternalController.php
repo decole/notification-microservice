@@ -48,6 +48,7 @@ final class InternalController extends AbstractController
 
     /**
      * @return array<string,mixed>
+     *
      * @throws \JsonException
      */
     private function decodeJson(Request $request): array

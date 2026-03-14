@@ -28,9 +28,7 @@ final class ApiUser implements UserInterface
         return ['ROLE_API_USER'];
     }
 
-    public function eraseCredentials(): void
-    {
-    }
+    public function eraseCredentials(): void {}
 
     public function getUserIdentifier(): string
     {

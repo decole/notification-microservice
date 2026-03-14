@@ -4,14 +4,14 @@ declare(strict_types=1);
 
 namespace App\Service;
 
-use Doctrine\DBAL\Connection;
+use App\Repository\UserRepositoryInterface;
 
-class TokenAuthService
+final readonly class TokenAuthService
 {
     public function __construct(
-        private readonly Connection $connection,
-        private readonly \Redis $redis,
-        private readonly int $tokenTtlSeconds,
+        private UserRepositoryInterface $userRepository,
+        private \Redis $redis,
+        private int $tokenTtlSeconds,
     ) {}
 
     /**
@@ -20,7 +20,6 @@ class TokenAuthService
     public function resolveUserByToken(string $token): ?array
     {
         $cacheKey = $this->tokenCacheKey($token);
-        $cachedUserId = false;
 
         try {
             $cachedUserId = $this->redis->get($cacheKey);
@@ -29,40 +28,29 @@ class TokenAuthService
         }
 
         if (is_string($cachedUserId) && '' !== $cachedUserId) {
-            $user = $this->connection->fetchAssociative(
-                'SELECT id, username FROM users WHERE id = :id',
-                ['id' => (int) $cachedUserId],
-            );
+            $user = $this->userRepository->findUserById((int) $cachedUserId);
 
-            if (is_array($user)) {
-                return [
-                    'id' => (int) $user['id'],
-                    'username' => null !== $user['username'] ? (string) $user['username'] : null,
-                ];
+            if (null !== $user) {
+                return $user;
             }
         }
 
         $tokenHash = hash('sha256', $token);
-        $user = $this->connection->fetchAssociative(
-            'SELECT id, username FROM users WHERE token_hash = :token_hash',
-            ['token_hash' => $tokenHash],
-        );
+        $user = $this->userRepository->findUserByTokenHash($tokenHash);
 
-        if (!is_array($user)) {
+        if (null === $user) {
             return null;
         }
 
-        $userId = (int) $user['id'];
+        $userId = $user['id'];
+
         try {
             $this->redis->setex($cacheKey, $this->tokenTtlSeconds, (string) $userId);
         } catch (\RedisException) {
             // Redis is only an auth cache. DB lookup already succeeded.
         }
 
-        return [
-            'id' => $userId,
-            'username' => null !== $user['username'] ? (string) $user['username'] : null,
-        ];
+        return $user;
     }
 
     private function tokenCacheKey(string $token): string

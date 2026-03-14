@@ -4,31 +4,25 @@ declare(strict_types=1);
 
 namespace App\Service;
 
-use Doctrine\DBAL\Connection;
+use App\Repository\UserRepositoryInterface;
 
 final readonly class UserService
 {
     public function __construct(
-        private Connection $connection,
+        private UserRepositoryInterface $userRepository,
         private \Redis $redis,
         private int $tokenTtlSeconds,
     ) {}
 
     /**
-     * @return array{id:int,username:?string}
+     * @return array{id:int,token:string,username:?string}
      */
     public function createUser(?string $username = null): array
     {
         $token = bin2hex(random_bytes(32));
         $tokenHash = hash('sha256', $token);
 
-        $id = (int) $this->connection->fetchOne(
-            'INSERT INTO users(token_hash, username, created_at) VALUES(:token_hash, :username, NOW()) RETURNING id',
-            [
-                'token_hash' => $tokenHash,
-                'username' => $username,
-            ],
-        );
+        $id = $this->userRepository->createUser($tokenHash, $username);
 
         try {
             $this->redis->setex($this->tokenCacheKey($token), $this->tokenTtlSeconds, (string) $id);

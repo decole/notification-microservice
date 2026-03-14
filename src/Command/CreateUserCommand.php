@@ -15,7 +15,8 @@ use Symfony\Component\Console\Style\SymfonyStyle;
 #[AsCommand(name: 'app:user:create', description: 'Create user and print access token', aliases: ['app:create-user'])]
 final class CreateUserCommand extends Command
 {
-    public function __construct(private readonly UserService $userService) {
+    public function __construct(private readonly UserService $userService)
+    {
         parent::__construct();
     }
 
