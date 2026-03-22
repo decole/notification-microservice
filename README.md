@@ -2,6 +2,10 @@
 
 Микросервис уведомлений на Symfony с Bearer-аутентификацией, хранением непрочитанных сообщений по темам и Docker-окружением.
 
+## Clients:
+ - linux client – https://github.com/decole/notification-linux-client
+ - android client – not yet.E
+
 ## Стек
 - PHP 8.4
 - Symfony 8.0
