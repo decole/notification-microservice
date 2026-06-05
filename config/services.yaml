@@ -20,6 +20,9 @@ services:
     resource: '../src/Controller/'
     tags: ['controller.service_arguments']
 
+  App\Repository\UserRepositoryInterface: '@App\Repository\UserRepository'
+  App\Repository\NotificationRepositoryInterface: '@App\Repository\NotificationRepository'
+
   App\:
     resource: '../src/'
     exclude:

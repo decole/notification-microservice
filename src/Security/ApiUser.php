@@ -11,7 +11,6 @@ final class ApiUser implements UserInterface
     public function __construct(
         private readonly int $id,
         private readonly ?string $username,
-        private readonly string $token,
     ) {}
 
     public function getId(): int
@@ -29,12 +28,10 @@ final class ApiUser implements UserInterface
         return ['ROLE_API_USER'];
     }
 
-    public function eraseCredentials(): void
-    {
-    }
+    public function eraseCredentials(): void {}
 
     public function getUserIdentifier(): string
     {
-        return $this->token;
+        return (string) $this->id;
     }
 }

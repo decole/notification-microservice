@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Factory;
 
-class RedisFactory
+final class RedisFactory
 {
     public function create(string $host, int $port): \Redis
     {

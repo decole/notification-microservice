@@ -32,7 +32,6 @@ final class NotificationApiTest extends WebTestCase
         $this->redis = $container->get(\Redis::class);
         $this->userService = $container->get(UserService::class);
 
-        $this->ensureTokenHashColumn();
         $this->resetStorage();
     }
 
@@ -41,7 +40,7 @@ final class NotificationApiTest extends WebTestCase
         $this->client->request(
             'POST',
             '/internal/register',
-            server: ['HTTP_X_INTERNAL_SECRET' => 'internal-secret', 'CONTENT_TYPE' => 'application/json'],
+            server: $this->internalRegisterServer(),
             content: json_encode(['username' => 'alice'], JSON_THROW_ON_ERROR),
         );
 
@@ -54,8 +53,8 @@ final class NotificationApiTest extends WebTestCase
         self::assertNotSame('', $data['token']);
 
         $row = $this->connection->fetchAssociative(
-            'SELECT id, username, token_hash FROM users WHERE token = :token',
-            ['token' => $data['token']],
+            'SELECT id, username, token_hash FROM users WHERE username = :username',
+            ['username' => 'alice'],
         );
         self::assertIsArray($row);
         self::assertSame('alice', $row['username']);
@@ -89,6 +88,46 @@ final class NotificationApiTest extends WebTestCase
 
         self::assertResponseStatusCodeSame(403);
         self::assertSame(['error' => 'Forbidden'], $this->decodeResponse());
+    }
+
+    #[DataProvider('provideInvalidRegisterPayloads')]
+    public function testInternalRegisterRejectsInvalidPayloads(array $payload): void
+    {
+        $this->client->request(
+            'POST',
+            '/internal/register',
+            server: $this->internalRegisterServer(),
+            content: json_encode($payload, JSON_THROW_ON_ERROR),
+        );
+
+        self::assertResponseStatusCodeSame(422);
+        self::assertSame(['error' => 'Invalid username'], $this->decodeResponse());
+    }
+
+    public function testInternalRegisterRejectsInvalidJsonPayload(): void
+    {
+        $this->client->request(
+            'POST',
+            '/internal/register',
+            server: $this->internalRegisterServer(),
+            content: '{invalid-json',
+        );
+
+        self::assertResponseStatusCodeSame(400);
+        self::assertSame(['error' => 'Invalid JSON'], $this->decodeResponse());
+    }
+
+    public function testInternalRegisterRejectsMissingUsernameField(): void
+    {
+        $this->client->request(
+            'POST',
+            '/internal/register',
+            server: $this->internalRegisterServer(),
+            content: json_encode([], JSON_THROW_ON_ERROR),
+        );
+
+        self::assertResponseStatusCodeSame(422);
+        self::assertSame(['error' => 'Invalid username'], $this->decodeResponse());
     }
 
     public function testSendAndReceiveUnreadMessagesWithMarkAsRead(): void
@@ -191,18 +230,6 @@ final class NotificationApiTest extends WebTestCase
         self::assertSame(['error' => 'Unauthorized'], $this->decodeResponse());
     }
 
-    public function testApiAuthenticatesLegacyTokenWithoutTokenHash(): void
-    {
-        $token = $this->registerUser('legacy-user');
-        $this->connection->executeStatement('UPDATE users SET token_hash = NULL WHERE token = :token', ['token' => $token]);
-        $this->redis->del(sprintf('auth:token:%s', $token));
-
-        $this->client->request('GET', '/api/topics', server: $this->authServer($token));
-
-        self::assertResponseIsSuccessful();
-        self::assertArrayHasKey('topics', $this->decodeResponse());
-    }
-
     #[DataProvider('provideInvalidSendPayloads')]
     public function testSendRejectsInvalidPayloads(array $payload): void
     {
@@ -229,15 +256,15 @@ final class NotificationApiTest extends WebTestCase
             content: '{invalid-json',
         );
 
-        self::assertResponseStatusCodeSame(422);
-        self::assertSame(['error' => 'Invalid topic'], $this->decodeResponse());
+        self::assertResponseStatusCodeSame(400);
+        self::assertSame(['error' => 'Invalid JSON'], $this->decodeResponse());
     }
 
     public function testMessagesRejectsTopicThatIsTooLong(): void
     {
         $token = $this->registerUser('reader');
 
-        $this->client->request('GET', '/api/messages/'.str_repeat('a', 256), server: $this->authServer($token));
+        $this->client->request('GET', '/api/messages/' . str_repeat('a', 256), server: $this->authServer($token));
 
         self::assertResponseStatusCodeSame(422);
         self::assertSame(['error' => 'Invalid topic'], $this->decodeResponse());
@@ -258,11 +285,37 @@ final class NotificationApiTest extends WebTestCase
         yield 'non string message' => [['topic' => 'work', 'message' => ['Hello']]];
     }
 
+    /**
+     * @return iterable<string, array{0: array<string, mixed>}>
+     */
+    public static function provideInvalidRegisterPayloads(): iterable
+    {
+        yield 'blank username' => [['username' => '   ']];
+        yield 'null username' => [['username' => null]];
+        yield 'username too long' => [['username' => str_repeat('a', 256)]];
+        yield 'non string username' => [['username' => ['alice']]];
+    }
+
     private function registerUser(string $username): string
     {
         $user = $this->userService->createUser($username);
 
         return (string) $user['token'];
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    private function internalRegisterServer(): array
+    {
+        static $counter = 10;
+        ++$counter;
+
+        return [
+            'REMOTE_ADDR' => sprintf('10.10.10.%d', $counter),
+            'HTTP_X_INTERNAL_SECRET' => 'internal-secret',
+            'CONTENT_TYPE' => 'application/json',
+        ];
     }
 
     /**
@@ -295,10 +348,5 @@ final class NotificationApiTest extends WebTestCase
         $content = $this->client->getResponse()->getContent();
 
         return json_decode($content ?: '{}', true, 512, JSON_THROW_ON_ERROR);
-    }
-
-    private function ensureTokenHashColumn(): void
-    {
-        $this->connection->executeStatement('ALTER TABLE users ADD COLUMN IF NOT EXISTS token_hash VARCHAR(64) DEFAULT NULL');
     }
 }

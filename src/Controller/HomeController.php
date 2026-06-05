@@ -11,9 +11,7 @@ use Twig\Environment;
 
 final class HomeController extends AbstractController
 {
-    public function __construct(
-        private readonly Environment $twig,
-    ) {}
+    public function __construct(private readonly Environment $twig) {}
 
     #[Route('/', name: 'home', methods: ['GET'])]
     public function index(): Response
