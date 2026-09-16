@@ -2,6 +2,8 @@
 
 Микросервис уведомлений на Symfony с Bearer-аутентификацией, хранением непрочитанных сообщений по темам и Docker-окружением.
 
+[Read in English](README.en.md)
+
 ## Clients:
  - linux client – https://github.com/decole/notification-linux-client
  - android client – not yet.E
@@ -156,6 +158,66 @@ curl http://localhost:8080/healthz
 ```bash
 curl http://localhost:8080/
 ```
+
+## Интеграция с Gatus (Monitoring & Alerting)
+
+Микросервис может использоваться как единая точка доставки алертов из системы мониторинга [Gatus](https://github.com/TwiN/gatus) для десктопных и мобильных клиентов.
+
+### 1. Создание токена для Gatus
+
+Сгенерируйте сервисный токен для Gatus:
+
+```bash
+docker compose exec php php bin/console app:user:create gatus-alerter
+```
+
+Скопируйте полученный `<TOKEN>`.
+
+### 2. Настройка Gatus (`config.yaml`)
+
+Настройте секцию `alerting.custom` в конфигурационном файле Gatus:
+
+```yaml
+alerting:
+  custom:
+    url: "http://notification-server:8080/api/send"
+    method: "POST"
+    headers:
+      Authorization: "Bearer <TOKEN>"
+      Content-Type: "application/json"
+    body: |
+      {
+        "topic": "alerts",
+        "message": "[ALERT_TRIGGERED_OR_RESOLVED] | [ENDPOINT_GROUP]/[ENDPOINT_NAME] is [ENDPOINT_STATUS] (HTTP [STATUS], [RESPONSE_TIME]ms). Details: [ALERT_DESCRIPTION]"
+      }
+
+endpoints:
+  - name: backend-api
+    group: core
+    url: "http://backend:8080/healthz"
+    interval: 30s
+    conditions:
+      - "[STATUS] == 200"
+      - "[BODY].status == ok"
+    alerts:
+      - type: custom
+        enabled: true
+        failure-threshold: 3
+        success-threshold: 2
+        send-on-resolved: true
+        description: "Backend health check failed"
+```
+
+### 3. Получение алертов клиентами
+
+Клиентское приложение (Linux/Android) запрашивает непрочитанные алерты по топику `alerts`:
+
+```bash
+curl -X GET http://localhost:8080/api/messages/alerts \
+  -H 'Authorization: Bearer <CLIENT_TOKEN>'
+```
+
+Все подписчики топика `alerts` получают уведомления о сбоях и восстановлении сервисов в реальном времени.
 
 ## Ограничения и безопасность
 

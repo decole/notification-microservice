@@ -1,5 +1,7 @@
 # Developer Guide
 
+[Read in English](DEVELOPERS.en.md)
+
 ## Цель
 
 Правила поддержки и развития notification service.
