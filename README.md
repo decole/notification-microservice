@@ -119,14 +119,16 @@ curl -X POST http://localhost:8080/api/send \
 ### Получить непрочитанные сообщения по теме
 
 ```bash
-curl -X GET http://localhost:8080/api/messages/general \
+curl -X GET 'http://localhost:8080/api/messages/general?limit=100' \
   -H 'Authorization: Bearer <TOKEN>'
 ```
+
+Параметр `limit` опционален (по умолчанию `100`, макс. `1000`).
 
 ### Получить непрочитанные сообщения по теме по умолчанию
 
 ```bash
-curl -X GET http://localhost:8080/api/messages \
+curl -X GET 'http://localhost:8080/api/messages?limit=100' \
   -H 'Authorization: Bearer <TOKEN>'
 ```
 
@@ -135,6 +137,18 @@ curl -X GET http://localhost:8080/api/messages \
 ```bash
 curl -X GET http://localhost:8080/api/topics \
   -H 'Authorization: Bearer <TOKEN>'
+```
+
+### Health check
+
+```bash
+curl http://localhost:8080/healthz
+```
+
+Ответ:
+
+```json
+{"status":"ok","database":"connected","redis":"connected"}
 ```
 
 ### Welcome page
@@ -149,7 +163,7 @@ curl http://localhost:8080/
 - `/internal/register` ограничен rate limit: `10 req/min` на клиентский IP
 - ошибки API возвращаются в формате `{"error":"..."}`
 - payload validation для `/api/send` и `/internal/register` выполняется через `MapRequestPayload` + DTO
-- внутренний endpoint `/internal/register` требует секрет для не-localhost запросов
+- внутренний endpoint `/internal/register` строго требует секрет в заголовке `X-Internal-Secret`
 - при недоступности Redis `/api/*` продолжают аутентифицировать пользователя через PostgreSQL lookup по `token_hash`
 
 ## OpenAPI

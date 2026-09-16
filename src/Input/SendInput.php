@@ -6,7 +6,7 @@ namespace App\Input;
 
 use Symfony\Component\Validator\Constraints as Assert;
 
-class SendInput
+final class SendInput
 {
     #[Assert\Type('string')]
     #[Assert\NotBlank(normalizer: 'trim')]

@@ -26,6 +26,15 @@ final class SwitchableRedis extends \Redis
         self::$failMode = false;
     }
 
+    public function ping(?string $message = null): \Redis|string|bool
+    {
+        if (self::$failMode) {
+            throw new \RedisException('redis down');
+        }
+
+        return null !== $message ? parent::ping($message) : parent::ping();
+    }
+
     public function get(mixed $key): mixed
     {
         if (self::$failMode) {

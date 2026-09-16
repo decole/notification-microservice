@@ -59,6 +59,28 @@ final class NotificationRepositoryTest extends DatabaseRepositoryTestCase
 
         self::assertSame($messageId, $this->notificationRepository->findLastReadMessageId($readerId, $topicId));
         self::assertSame([], $this->notificationRepository->findUnreadMessages($topicId, $messageId));
+
+        // Test monotonic update: smaller message id should not overwrite higher message id
+        $this->notificationRepository->markTopicRead($readerId, $topicId, $messageId - 1);
+        self::assertSame($messageId, $this->notificationRepository->findLastReadMessageId($readerId, $topicId));
+    }
+
+    public function testFindUnreadMessagesRespectsLimit(): void
+    {
+        $senderId = (int) $this->connection->fetchOne(
+            'INSERT INTO users(token_hash, username, created_at) VALUES(:token_hash, :username, NOW()) RETURNING id',
+            ['token_hash' => hash('sha256', 'token-lim-repo'), 'username' => 'sender-repo'],
+        );
+        $topicId = $this->notificationRepository->findOrCreateTopicId('bulk');
+
+        for ($i = 1; $i <= 5; ++$i) {
+            $this->notificationRepository->createMessage($topicId, $senderId, sprintf('Bulk msg %d', $i));
+        }
+
+        $messages = $this->notificationRepository->findUnreadMessages($topicId, 0, 3);
+        self::assertCount(3, $messages);
+        self::assertSame('Bulk msg 1', $messages[0]['content']);
+        self::assertSame('Bulk msg 3', $messages[2]['content']);
     }
 
     public function testListTopicsReturnsSortedTopicNames(): void

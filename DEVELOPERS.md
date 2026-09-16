@@ -49,8 +49,10 @@
   - роль `ROLE_API_USER`
 - `/internal/register`:
   - не входит в security firewall
-  - защищён секретом `X-Internal-Secret` для non-localhost
+  - строго защищён секретом `X-Internal-Secret`
   - может быть полностью выключен через `INTERNAL_REGISTRATION_ENABLED=0`
+- `/healthz`:
+  - открытый диагностический эндпоинт состояния PostgreSQL и Redis
 - payload validation:
   - `/api/send` использует [`SendInput.php`](/home/decole/PhpstormProjects/uberserver-notification/src/Input/SendInput.php)
   - `/internal/register` использует [`RegisterInput.php`](/home/decole/PhpstormProjects/uberserver-notification/src/Input/RegisterInput.php)
@@ -65,7 +67,8 @@
 - клиентам выдаётся и передаётся raw token
 - в БД хранится только `token_hash`
 - lookup работает только по `token_hash`
-- Redis не является source of truth и используется только как cache
+- Redis хранит сериализованный профиль (`id`, `username`) как best-effort cache для нулевой нагрузки на БД при cache-hit
+- Redis не является source of truth
 
 Не менять внешний контракт:
 - клиенты не должны отправлять `token_hash`

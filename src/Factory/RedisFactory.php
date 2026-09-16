@@ -10,8 +10,10 @@ final class RedisFactory
     {
         $redis = new \Redis();
 
-        if (!$redis->connect($host, $port, 2.0)) {
-            throw new \RuntimeException(sprintf('Cannot connect to Redis at %s:%d', $host, $port));
+        try {
+            @$redis->connect($host, $port, 2.0);
+        } catch (\RedisException) {
+            // Redis is only a cache. Service initialization must succeed even if Redis is unreachable.
         }
 
         return $redis;

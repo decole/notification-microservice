@@ -27,18 +27,15 @@ final class InternalController extends AbstractController
             return new JsonResponse(['error' => 'Not found'], 404);
         }
 
-        $clientIp = $request->getClientIp();
         $providedSecret = $request->headers->get('X-Internal-Secret');
-        $isLocalhost = in_array($clientIp, ['127.0.0.1', '::1'], true);
 
-        if (!$isLocalhost && (null === $providedSecret || !hash_equals($this->internalApiSecret, $providedSecret))) {
+        if (null === $providedSecret || !hash_equals($this->internalApiSecret, $providedSecret)) {
             return new JsonResponse(['error' => 'Forbidden'], 403);
         }
 
         $user = $this->userService->createUser($input->username);
 
         return new JsonResponse([
-            'user' => $user,
             'token' => $user['token'],
         ], 201);
     }

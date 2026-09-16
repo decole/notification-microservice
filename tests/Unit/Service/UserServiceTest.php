@@ -30,7 +30,7 @@ final class UserServiceTest extends TestCase
             ->with(
                 $this->callback(static fn (string $key): bool => str_starts_with($key, 'auth:token:')),
                 3600,
-                '15',
+                json_encode(['id' => 15, 'username' => 'alice']),
             );
 
         $service = new UserService($userRepository, $redis, 3600);

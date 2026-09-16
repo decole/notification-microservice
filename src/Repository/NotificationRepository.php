@@ -37,12 +37,6 @@ final readonly class NotificationRepository implements NotificationRepositoryInt
 
     public function findOrCreateTopicId(string $topicName): int
     {
-        $topicId = $this->findTopicIdByName($topicName);
-
-        if (null !== $topicId) {
-            return $topicId;
-        }
-
         return (int) $this->connection->fetchOne(
             'INSERT INTO topics(name, created_at) VALUES(:name, NOW())
              ON CONFLICT (name) DO UPDATE SET name = EXCLUDED.name
@@ -76,16 +70,18 @@ final readonly class NotificationRepository implements NotificationRepositoryInt
         return is_numeric($lastRead) ? (int) $lastRead : null;
     }
 
-    public function findUnreadMessages(int $topicId, int $lastReadId): array
+    public function findUnreadMessages(int $topicId, int $lastReadId, int $limit = 100): array
     {
         $rows = $this->connection->fetchAllAssociative(
             'SELECT id, content, created_at, user_id AS sender_id
              FROM messages
              WHERE topic_id = :topic_id AND id > :last_read
-             ORDER BY id ASC',
+             ORDER BY id ASC
+             LIMIT :limit',
             [
                 'topic_id' => $topicId,
                 'last_read' => $lastReadId,
+                'limit' => max(1, min(1000, $limit)),
             ],
         );
 
@@ -103,7 +99,7 @@ final readonly class NotificationRepository implements NotificationRepositoryInt
             'INSERT INTO user_topic_read(user_id, topic_id, last_read_message_id, updated_at)
              VALUES (:user_id, :topic_id, :last_read_message_id, NOW())
              ON CONFLICT (user_id, topic_id)
-             DO UPDATE SET last_read_message_id = EXCLUDED.last_read_message_id, updated_at = NOW()',
+             DO UPDATE SET last_read_message_id = GREATEST(user_topic_read.last_read_message_id, EXCLUDED.last_read_message_id), updated_at = NOW()',
             [
                 'user_id' => $userId,
                 'topic_id' => $topicId,

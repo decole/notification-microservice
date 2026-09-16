@@ -22,16 +22,33 @@ final readonly class TokenAuthService
         $cacheKey = $this->tokenCacheKey($token);
 
         try {
-            $cachedUserId = $this->redis->get($cacheKey);
+            $cachedValue = $this->redis->get($cacheKey);
         } catch (\RedisException) {
-            $cachedUserId = false;
+            $cachedValue = false;
         }
 
-        if (is_string($cachedUserId) && '' !== $cachedUserId) {
-            $user = $this->userRepository->findUserById((int) $cachedUserId);
-
-            if (null !== $user) {
-                return $user;
+        if (is_string($cachedValue) && '' !== $cachedValue) {
+            try {
+                $decoded = json_decode($cachedValue, true, 512, JSON_THROW_ON_ERROR);
+                if (is_array($decoded) && isset($decoded['id'])) {
+                    return [
+                        'id' => (int) $decoded['id'],
+                        'username' => isset($decoded['username']) && is_string($decoded['username']) ? $decoded['username'] : null,
+                    ];
+                }
+                if (is_int($decoded) || is_numeric($decoded)) {
+                    $user = $this->userRepository->findUserById((int) $decoded);
+                    if (null !== $user) {
+                        return $user;
+                    }
+                }
+            } catch (\JsonException) {
+                if (is_numeric($cachedValue)) {
+                    $user = $this->userRepository->findUserById((int) $cachedValue);
+                    if (null !== $user) {
+                        return $user;
+                    }
+                }
             }
         }
 
@@ -42,11 +59,10 @@ final readonly class TokenAuthService
             return null;
         }
 
-        $userId = $user['id'];
-
         try {
-            $this->redis->setex($cacheKey, $this->tokenTtlSeconds, (string) $userId);
-        } catch (\RedisException) {
+            $payload = json_encode(['id' => $user['id'], 'username' => $user['username']], JSON_THROW_ON_ERROR);
+            $this->redis->setex($cacheKey, $this->tokenTtlSeconds, $payload);
+        } catch (\RedisException|\JsonException) {
             // Redis is only an auth cache. DB lookup already succeeded.
         }
 

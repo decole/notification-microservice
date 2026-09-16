@@ -23,7 +23,7 @@ interface NotificationRepositoryInterface
     /**
      * @return list<array{id:int,content:string,created_at:string,sender_id:int|null}>
      */
-    public function findUnreadMessages(int $topicId, int $lastReadId): array;
+    public function findUnreadMessages(int $topicId, int $lastReadId, int $limit = 100): array;
 
     public function markTopicRead(int $userId, int $topicId, int $lastReadMessageId): void;
 

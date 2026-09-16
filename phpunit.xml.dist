@@ -4,7 +4,10 @@
          backupGlobals="false"
          colors="true"
          bootstrap="tests/bootstrap.php"
-         cacheDirectory=".phpunit.cache">
+         cacheDirectory=".phpunit.cache"
+         displayDetailsOnTestsThatTriggerNotices="true"
+         displayDetailsOnTestsThatTriggerDeprecations="true"
+         displayDetailsOnTestsThatTriggerWarnings="true">
     <php>
         <env name="APP_ENV" value="test" force="true"/>
         <env name="APP_DEBUG" value="1" force="true"/>

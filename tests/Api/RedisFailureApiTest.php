@@ -78,6 +78,19 @@ final class RedisFailureApiTest extends WebTestCase
         self::assertSame(['default'], $payload['topics']);
     }
 
+    public function testHealthzShowsDegradedStatusWhenRedisIsUnavailable(): void
+    {
+        SwitchableRedis::enableFailureMode();
+
+        $this->client->request('GET', '/healthz');
+
+        self::assertResponseStatusCodeSame(200);
+        $payload = json_decode($this->client->getResponse()->getContent() ?: '{}', true, 512, JSON_THROW_ON_ERROR);
+        self::assertSame('degraded', $payload['status']);
+        self::assertSame('connected', $payload['database']);
+        self::assertSame('unavailable', $payload['redis']);
+    }
+
     private function resetStorage(): void
     {
         $this->connection->executeStatement('TRUNCATE TABLE user_topic_read, messages, topics, users RESTART IDENTITY CASCADE');
