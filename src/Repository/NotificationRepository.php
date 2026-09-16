@@ -114,4 +114,12 @@ final readonly class NotificationRepository implements NotificationRepositoryInt
 
         return array_map(static fn (mixed $name): string => (string) $name, $rows);
     }
+
+    public function deleteMessagesOlderThanDays(int $days): int
+    {
+        return (int) $this->connection->executeStatement(
+            "DELETE FROM messages WHERE created_at < NOW() - (:days || ' days')::INTERVAL",
+            ['days' => max(1, $days)],
+        );
+    }
 }

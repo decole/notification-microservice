@@ -47,6 +47,7 @@ components:
       properties:
         username:
           type: string
+          pattern: '^[a-zA-Z0-9_\-\.@\s]+$'
           maxLength: 255
     RegisterResponse:
       type: object
@@ -59,6 +60,7 @@ components:
       properties:
         topic:
           type: string
+          pattern: '^[a-zA-Z0-9_\-\.]+$'
           maxLength: 255
         message:
           type: string

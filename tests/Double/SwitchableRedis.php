@@ -8,10 +8,17 @@ final class SwitchableRedis extends \Redis
 {
     private static bool $failMode = false;
 
-    public static function create(string $host, int $port): self
+    public static function create(string $host, int $port, ?string $password = null): self
     {
         $redis = new self();
-        $redis->connect($host, $port);
+        try {
+            if (@$redis->connect($host, $port, 2.0)) {
+                if (null !== $password && '' !== trim($password)) {
+                    $redis->auth($password);
+                }
+            }
+        } catch (\RedisException) {
+        }
 
         return $redis;
     }

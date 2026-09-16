@@ -91,6 +91,31 @@ final class NotificationRepositoryTest extends DatabaseRepositoryTestCase
         self::assertSame(['alpha', 'default', 'zeta'], $this->notificationRepository->listTopics());
     }
 
+    public function testDeleteMessagesOlderThanDays(): void
+    {
+        $senderId = (int) $this->connection->fetchOne(
+            'INSERT INTO users(token_hash, username, created_at) VALUES(:token_hash, :username, NOW()) RETURNING id',
+            ['token_hash' => hash('sha256', 'token-old-repo'), 'username' => 'sender-old'],
+        );
+        $topicId = $this->notificationRepository->findOrCreateTopicId('history');
+
+        $this->connection->executeStatement(
+            "INSERT INTO messages(topic_id, user_id, content, created_at) VALUES(:topic_id, :user_id, 'old message', NOW() - INTERVAL '40 days')",
+            ['topic_id' => $topicId, 'user_id' => $senderId],
+        );
+        $this->connection->executeStatement(
+            "INSERT INTO messages(topic_id, user_id, content, created_at) VALUES(:topic_id, :user_id, 'new message', NOW())",
+            ['topic_id' => $topicId, 'user_id' => $senderId],
+        );
+
+        $deleted = $this->notificationRepository->deleteMessagesOlderThanDays(30);
+        self::assertSame(1, $deleted);
+
+        $remaining = $this->notificationRepository->findUnreadMessages($topicId, 0);
+        self::assertCount(1, $remaining);
+        self::assertSame('new message', $remaining[0]['content']);
+    }
+
     public function testTransactionMethodsCommitPersistedChanges(): void
     {
         $this->notificationRepository->beginTransaction();

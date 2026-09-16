@@ -5,3 +5,4 @@ services:
     arguments:
       - '%env(string:REDIS_HOST)%'
       - '%env(int:REDIS_PORT)%'
+      - '%env(default::REDIS_PASSWORD)%'

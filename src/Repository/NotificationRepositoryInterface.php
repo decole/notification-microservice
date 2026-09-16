@@ -31,4 +31,6 @@ interface NotificationRepositoryInterface
      * @return list<string>
      */
     public function listTopics(): array;
+
+    public function deleteMessagesOlderThanDays(int $days): int;
 }

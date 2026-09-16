@@ -328,6 +328,16 @@ final class NotificationApiTest extends WebTestCase
         self::assertSame(['error' => 'Invalid topic'], $this->decodeResponse());
     }
 
+    public function testMessagesRejectsTopicWithInvalidCharacters(): void
+    {
+        $token = $this->registerUser('reader-spec');
+
+        $this->client->request('GET', '/api/messages/topic%20with%20spaces', server: $this->authServer($token));
+
+        self::assertResponseStatusCodeSame(422);
+        self::assertSame(['error' => 'Invalid topic'], $this->decodeResponse());
+    }
+
     /**
      * @return iterable<string, array{0: array<string, mixed>}>
      */
@@ -336,6 +346,8 @@ final class NotificationApiTest extends WebTestCase
         yield 'missing topic' => [[]];
         yield 'blank topic' => [['topic' => '   ', 'message' => 'Hello']];
         yield 'topic too long' => [['topic' => str_repeat('a', 256), 'message' => 'Hello']];
+        yield 'topic invalid chars' => [['topic' => 'hello/world', 'message' => 'Hello']];
+        yield 'topic space chars' => [['topic' => 'hello world', 'message' => 'Hello']];
         yield 'missing message' => [['topic' => 'work']];
         yield 'blank message' => [['topic' => 'work', 'message' => '']];
         yield 'message too long' => [['topic' => 'work', 'message' => str_repeat('m', 4097)]];

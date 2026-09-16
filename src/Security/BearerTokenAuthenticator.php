@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Security;
 
 use App\Service\TokenAuthService;
+use Psr\Log\LoggerInterface;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -17,7 +18,10 @@ use Symfony\Component\Security\Http\EntryPoint\AuthenticationEntryPointInterface
 
 final class BearerTokenAuthenticator extends AbstractAuthenticator implements AuthenticationEntryPointInterface
 {
-    public function __construct(private readonly TokenAuthService $tokenAuthService) {}
+    public function __construct(
+        private readonly TokenAuthService $tokenAuthService,
+        private readonly ?LoggerInterface $securityAuditLogger = null,
+    ) {}
 
     public function supports(Request $request): ?bool
     {
@@ -29,6 +33,12 @@ final class BearerTokenAuthenticator extends AbstractAuthenticator implements Au
         $authHeader = $request->headers->get('Authorization', '');
 
         if (!preg_match('/^Bearer\\s+(.+)$/', $authHeader, $matches)) {
+            $this->securityAuditLogger?->warning('Authentication failed: missing or malformed Bearer header', [
+                'ip' => $request->getClientIp(),
+                'user_agent' => $request->headers->get('User-Agent'),
+                'path' => $request->getPathInfo(),
+            ]);
+
             throw new AuthenticationException('Missing or invalid Authorization header.');
         }
 
@@ -36,6 +46,13 @@ final class BearerTokenAuthenticator extends AbstractAuthenticator implements Au
         $user = $this->tokenAuthService->resolveUserByToken($token);
 
         if (null === $user) {
+            $this->securityAuditLogger?->warning('Authentication failed: invalid token provided', [
+                'ip' => $request->getClientIp(),
+                'user_agent' => $request->headers->get('User-Agent'),
+                'token_prefix' => substr($token, 0, 6) . '...',
+                'path' => $request->getPathInfo(),
+            ]);
+
             throw new AuthenticationException('Invalid token.');
         }
 

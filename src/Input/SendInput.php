@@ -11,6 +11,10 @@ final class SendInput
     #[Assert\Type('string')]
     #[Assert\NotBlank(normalizer: 'trim')]
     #[Assert\Length(max: 255)]
+    #[Assert\Regex(
+        pattern: '/^[a-zA-Z0-9_\-\.]+$/',
+        message: 'Invalid topic',
+    )]
     public string $topic;
 
     #[Assert\Type('string')]

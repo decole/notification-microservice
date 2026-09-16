@@ -42,7 +42,7 @@ final class ApiController extends AbstractController
 
         $topicName = null !== $topic && '' !== trim($topic) ? trim($topic) : $this->defaultTopic;
 
-        if (mb_strlen($topicName) > 255) {
+        if (mb_strlen($topicName) > 255 || !preg_match('/^[a-zA-Z0-9_\-\.]+$/', $topicName)) {
             return new JsonResponse(['error' => 'Invalid topic'], 422);
         }
 

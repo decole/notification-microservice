@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\EventSubscriber;
 
+use Psr\Log\LoggerInterface;
 use Symfony\Component\EventDispatcher\EventSubscriberInterface;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -16,6 +17,7 @@ final readonly class RequestRateLimitSubscriber implements EventSubscriberInterf
     public function __construct(
         private RateLimiterFactory $apiRequestLimiter,
         private RateLimiterFactory $internalRegisterLimiter,
+        private ?LoggerInterface $securityAuditLogger = null,
     ) {}
 
     public static function getSubscribedEvents(): array
@@ -55,6 +57,14 @@ final readonly class RequestRateLimitSubscriber implements EventSubscriberInterf
         }
 
         $retryAfter = $limit->getRetryAfter();
+        $request = $event->getRequest();
+
+        $this->securityAuditLogger?->warning('Rate limit exceeded', [
+            'ip' => $request->getClientIp(),
+            'path' => $request->getPathInfo(),
+            'key' => $key,
+            'retry_after' => $retryAfter->getTimestamp() - time(),
+        ]);
 
         $headers['Retry-After'] = (string) max(1, $retryAfter->getTimestamp() - time());
 
