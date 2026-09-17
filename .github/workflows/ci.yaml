@@ -50,11 +50,11 @@ jobs:
       - name: Validate composer.json and composer.lock
         run: composer validate --strict --no-check-publish
 
-      - name: Check dependency vulnerabilities (SCA)
-        run: composer audit
-
       - name: Install Composer dependencies
         run: composer install --prefer-dist --no-progress --no-interaction
+
+      - name: Check dependency vulnerabilities (SCA)
+        run: composer audit --locked
 
       - name: Code style check (php-cs-fixer)
         run: composer fix-cs
