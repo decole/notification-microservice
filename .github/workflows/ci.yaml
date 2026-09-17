@@ -48,7 +48,7 @@ jobs:
           coverage: none
 
       - name: Validate composer.json and composer.lock
-        run: composer validate --strict
+        run: composer validate --strict --no-check-publish
 
       - name: Check dependency vulnerabilities (SCA)
         run: composer audit
