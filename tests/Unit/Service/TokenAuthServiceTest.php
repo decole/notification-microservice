@@ -10,12 +10,29 @@ use PHPUnit\Framework\TestCase;
 
 final class TokenAuthServiceTest extends TestCase
 {
-    public function testResolveUserByTokenReturnsCachedUser(): void
+    public function testResolveUserByTokenReturnsCachedUserFromJsonWithoutDbHit(): void
     {
         $userRepository = $this->createMock(UserRepositoryInterface::class);
         $redis = $this->createMock(\Redis::class);
 
-        $redis->expects($this->once())->method('get')->with('auth:token:token-1')->willReturn('7');
+        $redis->expects($this->once())
+            ->method('get')
+            ->with('auth:token:token-1')
+            ->willReturn(json_encode(['id' => 7, 'username' => 'alice']));
+        $userRepository->expects($this->never())->method('findUserById');
+        $userRepository->expects($this->never())->method('findUserByTokenHash');
+
+        $service = new TokenAuthService($userRepository, $redis, 3600);
+
+        self::assertSame(['id' => 7, 'username' => 'alice'], $service->resolveUserByToken('token-1'));
+    }
+
+    public function testResolveUserByTokenSupportsLegacyNumericCachedId(): void
+    {
+        $userRepository = $this->createMock(UserRepositoryInterface::class);
+        $redis = $this->createMock(\Redis::class);
+
+        $redis->expects($this->once())->method('get')->with('auth:token:token-legacy')->willReturn('7');
         $userRepository
             ->expects($this->once())
             ->method('findUserById')
@@ -24,7 +41,7 @@ final class TokenAuthServiceTest extends TestCase
 
         $service = new TokenAuthService($userRepository, $redis, 3600);
 
-        self::assertSame(['id' => 7, 'username' => 'alice'], $service->resolveUserByToken('token-1'));
+        self::assertSame(['id' => 7, 'username' => 'alice'], $service->resolveUserByToken('token-legacy'));
     }
 
     public function testResolveUserByTokenUsesTokenHashFirst(): void
@@ -38,7 +55,9 @@ final class TokenAuthServiceTest extends TestCase
             ->method('findUserByTokenHash')
             ->with(hash('sha256', 'token-2'))
             ->willReturn(['id' => 9, 'username' => 'bob']);
-        $redis->expects($this->once())->method('setex')->with('auth:token:token-2', 3600, '9');
+        $redis->expects($this->once())
+            ->method('setex')
+            ->with('auth:token:token-2', 3600, json_encode(['id' => 9, 'username' => 'bob']));
 
         $service = new TokenAuthService($userRepository, $redis, 3600);
 
@@ -73,7 +92,9 @@ final class TokenAuthServiceTest extends TestCase
             ->method('findUserByTokenHash')
             ->with(hash('sha256', 'token-3'))
             ->willReturn(['id' => 11, 'username' => 'carol']);
-        $redis->expects($this->once())->method('setex')->with('auth:token:token-3', 3600, '11');
+        $redis->expects($this->once())
+            ->method('setex')
+            ->with('auth:token:token-3', 3600, json_encode(['id' => 11, 'username' => 'carol']));
 
         $service = new TokenAuthService($userRepository, $redis, 3600);
 
@@ -94,7 +115,7 @@ final class TokenAuthServiceTest extends TestCase
         $redis
             ->expects($this->once())
             ->method('setex')
-            ->with('auth:token:token-4', 3600, '13')
+            ->with('auth:token:token-4', 3600, json_encode(['id' => 13, 'username' => 'dave']))
             ->willThrowException(new \RedisException('redis down'));
 
         $service = new TokenAuthService($userRepository, $redis, 3600);

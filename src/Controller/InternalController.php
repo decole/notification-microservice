@@ -6,6 +6,7 @@ namespace App\Controller;
 
 use App\Input\RegisterInput;
 use App\Service\UserService;
+use Psr\Log\LoggerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -18,6 +19,7 @@ final class InternalController extends AbstractController
         private readonly UserService $userService,
         private readonly string $internalApiSecret,
         private readonly bool $internalRegistrationEnabled,
+        private readonly ?LoggerInterface $securityAuditLogger = null,
     ) {}
 
     #[Route('/internal/register', name: 'internal_register', methods: ['POST'])]
@@ -27,18 +29,21 @@ final class InternalController extends AbstractController
             return new JsonResponse(['error' => 'Not found'], 404);
         }
 
-        $clientIp = $request->getClientIp();
         $providedSecret = $request->headers->get('X-Internal-Secret');
-        $isLocalhost = in_array($clientIp, ['127.0.0.1', '::1'], true);
 
-        if (!$isLocalhost && (null === $providedSecret || !hash_equals($this->internalApiSecret, $providedSecret))) {
+        if (null === $providedSecret || !hash_equals($this->internalApiSecret, $providedSecret)) {
+            $this->securityAuditLogger?->warning('Forbidden internal access attempt: invalid secret', [
+                'ip' => $request->getClientIp(),
+                'user_agent' => $request->headers->get('User-Agent'),
+                'path' => $request->getPathInfo(),
+            ]);
+
             return new JsonResponse(['error' => 'Forbidden'], 403);
         }
 
         $user = $this->userService->createUser($input->username);
 
         return new JsonResponse([
-            'user' => $user,
             'token' => $user['token'],
         ], 201);
     }

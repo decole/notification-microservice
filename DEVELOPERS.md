@@ -1,5 +1,7 @@
 # Developer Guide
 
+[Read in English](DEVELOPERS.en.md)
+
 ## Цель
 
 Правила поддержки и развития notification service.
@@ -49,8 +51,10 @@
   - роль `ROLE_API_USER`
 - `/internal/register`:
   - не входит в security firewall
-  - защищён секретом `X-Internal-Secret` для non-localhost
+  - строго защищён секретом `X-Internal-Secret`
   - может быть полностью выключен через `INTERNAL_REGISTRATION_ENABLED=0`
+- `/healthz`:
+  - открытый диагностический эндпоинт состояния PostgreSQL и Redis
 - payload validation:
   - `/api/send` использует [`SendInput.php`](/home/decole/PhpstormProjects/uberserver-notification/src/Input/SendInput.php)
   - `/internal/register` использует [`RegisterInput.php`](/home/decole/PhpstormProjects/uberserver-notification/src/Input/RegisterInput.php)
@@ -65,7 +69,8 @@
 - клиентам выдаётся и передаётся raw token
 - в БД хранится только `token_hash`
 - lookup работает только по `token_hash`
-- Redis не является source of truth и используется только как cache
+- Redis хранит сериализованный профиль (`id`, `username`) как best-effort cache для нулевой нагрузки на БД при cache-hit
+- Redis не является source of truth
 
 Не менять внешний контракт:
 - клиенты не должны отправлять `token_hash`
@@ -82,36 +87,28 @@ Operational rule:
 docker compose exec php php bin/console app:user:create alice
 ```
 
+Очистить старые сообщения по политике Data Retention:
+
+```bash
+docker compose exec php php bin/console app:messages:cleanup --days=30
+```
+
 Перед изменениями команд проверять, что:
 - команда видна в `bin/console list app`
 - команда не ломает `cache:clear`
 - `app:user:create` продолжает печатать token даже при сбое Redis
 
-## База данных
-
-Схема сейчас описана миграциями:
-- [`Version20260304112000.php`](/home/decole/PhpstormProjects/uberserver-notification/migrations/Version20260304112000.php)
-- [`Version20260314150000.php`](/home/decole/PhpstormProjects/uberserver-notification/migrations/Version20260314150000.php)
-- [`Version20260314154000.php`](/home/decole/PhpstormProjects/uberserver-notification/migrations/Version20260314154000.php)
-
-Изменения схемы:
-- только через новую migration
-- без ручных правок production schema
-
-Hot paths:
-- unread/read flow в [`NotificationService.php`](/home/decole/PhpstormProjects/uberserver-notification/src/Service/NotificationService.php)
-- token lookup в [`TokenAuthService.php`](/home/decole/PhpstormProjects/uberserver-notification/src/Service/TokenAuthService.php)
-
-При изменении этих мест обязательно проверять индексы и влияние на latency.
-Redis в этих местах должен оставаться best-effort optimisation, а не обязательной зависимостью.
-
 ## Docker и окружение
 
+Сетевая топология:
+- `frontend_net`: Nginx <-> PHP
+- `backend_net` (internal): PHP <-> PostgreSQL, Redis (БД и Redis изолированы от внешнего мира и Nginx)
+
 Контейнеры:
-- `php`
-- `nginx`
-- `postgres`
-- `redis`
+- `php` — запущен от непривилегированного пользователя `www-data`
+- `nginx` — настроены Security Headers, `server_tokens off`, таймауты и `client_max_body_size`
+- `postgres` — Postgres 15
+- `redis` — Redis 7 с опциональной авторизацией `REDIS_PASSWORD`
 
 Важно:
 - `postgres` и `redis` не должны публиковаться наружу без отдельной причины

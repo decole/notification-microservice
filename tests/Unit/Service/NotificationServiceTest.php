@@ -52,7 +52,7 @@ final class NotificationServiceTest extends TestCase
         $repository->expects($this->once())->method('beginTransaction');
         $repository->expects($this->once())->method('findTopicIdByName')->with('team')->willReturn(4);
         $repository->expects($this->once())->method('findLastReadMessageId')->with(20, 4)->willReturn(11);
-        $repository->expects($this->once())->method('findUnreadMessages')->with(4, 11)->willReturn([
+        $repository->expects($this->once())->method('findUnreadMessages')->with(4, 11, 100)->willReturn([
             ['id' => 12, 'content' => 'Hello', 'created_at' => '2026-01-01 10:00:00', 'sender_id' => 5],
             ['id' => 13, 'content' => 'World', 'created_at' => '2026-01-01 11:00:00', 'sender_id' => null],
         ]);
@@ -73,7 +73,7 @@ final class NotificationServiceTest extends TestCase
         $repository->expects($this->once())->method('beginTransaction');
         $repository->expects($this->once())->method('findTopicIdByName')->with('team')->willReturn(4);
         $repository->expects($this->once())->method('findLastReadMessageId')->with(20, 4)->willReturn(11);
-        $repository->expects($this->once())->method('findUnreadMessages')->with(4, 11)->willReturn([]);
+        $repository->expects($this->once())->method('findUnreadMessages')->with(4, 11, 100)->willReturn([]);
         $repository->expects($this->never())->method('markTopicRead');
         $repository->expects($this->once())->method('commit');
 

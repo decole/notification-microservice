@@ -25,8 +25,9 @@ final readonly class UserService
         $id = $this->userRepository->createUser($tokenHash, $username);
 
         try {
-            $this->redis->setex($this->tokenCacheKey($token), $this->tokenTtlSeconds, (string) $id);
-        } catch (\RedisException) {
+            $payload = json_encode(['id' => $id, 'username' => $username], JSON_THROW_ON_ERROR);
+            $this->redis->setex($this->tokenCacheKey($token), $this->tokenTtlSeconds, $payload);
+        } catch (\RedisException|\JsonException) {
             // Redis is only an auth cache. User creation must still succeed.
         }
 

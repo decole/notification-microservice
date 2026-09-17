@@ -8,7 +8,7 @@ if [ ! -d vendor ]; then
 fi
 
 if [ -f bin/console ]; then
-  php bin/console doctrine:migrations:migrate --no-interaction || true
+  php bin/console doctrine:migrations:migrate --no-interaction
 fi
 
 exec "$@"

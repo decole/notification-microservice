@@ -11,5 +11,9 @@ final class RegisterInput
     #[Assert\Type('string')]
     #[Assert\Length(max: 255)]
     #[Assert\NotBlank(normalizer: 'trim')]
+    #[Assert\Regex(
+        pattern: '/^[a-zA-Z0-9_\-\.\@\s]+$/',
+        message: 'Invalid username',
+    )]
     public ?string $username = null;
 }

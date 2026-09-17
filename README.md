@@ -2,6 +2,8 @@
 
 Микросервис уведомлений на Symfony с Bearer-аутентификацией, хранением непрочитанных сообщений по темам и Docker-окружением.
 
+[Read in English](README.en.md)
+
 ## Clients:
  - linux client – https://github.com/decole/notification-linux-client
  - android client – not yet.E
@@ -119,14 +121,16 @@ curl -X POST http://localhost:8080/api/send \
 ### Получить непрочитанные сообщения по теме
 
 ```bash
-curl -X GET http://localhost:8080/api/messages/general \
+curl -X GET 'http://localhost:8080/api/messages/general?limit=100' \
   -H 'Authorization: Bearer <TOKEN>'
 ```
+
+Параметр `limit` опционален (по умолчанию `100`, макс. `1000`).
 
 ### Получить непрочитанные сообщения по теме по умолчанию
 
 ```bash
-curl -X GET http://localhost:8080/api/messages \
+curl -X GET 'http://localhost:8080/api/messages?limit=100' \
   -H 'Authorization: Bearer <TOKEN>'
 ```
 
@@ -137,11 +141,83 @@ curl -X GET http://localhost:8080/api/topics \
   -H 'Authorization: Bearer <TOKEN>'
 ```
 
+### Health check
+
+```bash
+curl http://localhost:8080/healthz
+```
+
+Ответ:
+
+```json
+{"status":"ok","database":"connected","redis":"connected"}
+```
+
 ### Welcome page
 
 ```bash
 curl http://localhost:8080/
 ```
+
+## Интеграция с Gatus (Monitoring & Alerting)
+
+Микросервис может использоваться как единая точка доставки алертов из системы мониторинга [Gatus](https://github.com/TwiN/gatus) для десктопных и мобильных клиентов.
+
+### 1. Создание токена для Gatus
+
+Сгенерируйте сервисный токен для Gatus:
+
+```bash
+docker compose exec php php bin/console app:user:create gatus-alerter
+```
+
+Скопируйте полученный `<TOKEN>`.
+
+### 2. Настройка Gatus (`config.yaml`)
+
+Настройте секцию `alerting.custom` в конфигурационном файле Gatus:
+
+```yaml
+alerting:
+  custom:
+    url: "http://notification-server:8080/api/send"
+    method: "POST"
+    headers:
+      Authorization: "Bearer <TOKEN>"
+      Content-Type: "application/json"
+    body: |
+      {
+        "topic": "alerts",
+        "message": "[ALERT_TRIGGERED_OR_RESOLVED] | [ENDPOINT_GROUP]/[ENDPOINT_NAME] is [ENDPOINT_STATUS] (HTTP [STATUS], [RESPONSE_TIME]ms). Details: [ALERT_DESCRIPTION]"
+      }
+
+endpoints:
+  - name: backend-api
+    group: core
+    url: "http://backend:8080/healthz"
+    interval: 30s
+    conditions:
+      - "[STATUS] == 200"
+      - "[BODY].status == ok"
+    alerts:
+      - type: custom
+        enabled: true
+        failure-threshold: 3
+        success-threshold: 2
+        send-on-resolved: true
+        description: "Backend health check failed"
+```
+
+### 3. Получение алертов клиентами
+
+Клиентское приложение (Linux/Android) запрашивает непрочитанные алерты по топику `alerts`:
+
+```bash
+curl -X GET http://localhost:8080/api/messages/alerts \
+  -H 'Authorization: Bearer <CLIENT_TOKEN>'
+```
+
+Все подписчики топика `alerts` получают уведомления о сбоях и восстановлении сервисов в реальном времени.
 
 ## Ограничения и безопасность
 
@@ -149,7 +225,7 @@ curl http://localhost:8080/
 - `/internal/register` ограничен rate limit: `10 req/min` на клиентский IP
 - ошибки API возвращаются в формате `{"error":"..."}`
 - payload validation для `/api/send` и `/internal/register` выполняется через `MapRequestPayload` + DTO
-- внутренний endpoint `/internal/register` требует секрет для не-localhost запросов
+- внутренний endpoint `/internal/register` строго требует секрет в заголовке `X-Internal-Secret`
 - при недоступности Redis `/api/*` продолжают аутентифицировать пользователя через PostgreSQL lookup по `token_hash`
 
 ## OpenAPI

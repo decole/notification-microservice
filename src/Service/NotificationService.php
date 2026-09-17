@@ -22,7 +22,7 @@ final readonly class NotificationService
     /**
      * @return array<int,array{id:int,content:string,created_at:string,sender_id:int|null}>
      */
-    public function getUnreadMessagesAndMarkRead(int $userId, string $topicName): array
+    public function getUnreadMessagesAndMarkRead(int $userId, string $topicName, int $limit = 100): array
     {
         $this->notificationRepository->beginTransaction();
 
@@ -36,7 +36,7 @@ final readonly class NotificationService
             }
 
             $lastReadId = $this->notificationRepository->findLastReadMessageId($userId, $topicId) ?? 0;
-            $messages = $this->notificationRepository->findUnreadMessages($topicId, $lastReadId);
+            $messages = $this->notificationRepository->findUnreadMessages($topicId, $lastReadId, $limit);
 
             if ([] !== $messages) {
                 $maxId = $messages[array_key_last($messages)]['id'];

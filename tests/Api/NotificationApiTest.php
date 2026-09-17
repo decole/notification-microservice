@@ -60,8 +60,24 @@ final class NotificationApiTest extends WebTestCase
         self::assertSame('alice', $row['username']);
         self::assertSame(hash('sha256', $data['token']), $row['token_hash']);
 
-        $cachedUserId = $this->redis->get(sprintf('auth:token:%s', $data['token']));
-        self::assertSame((string) $row['id'], $cachedUserId);
+        $cachedPayload = $this->redis->get(sprintf('auth:token:%s', $data['token']));
+        self::assertIsString($cachedPayload);
+        $decoded = json_decode($cachedPayload, true);
+        self::assertSame((int) $row['id'], $decoded['id']);
+        self::assertSame('alice', $decoded['username']);
+    }
+
+    public function testInternalRegisterRejectsLocalhostRequestWithoutSecret(): void
+    {
+        $this->client->request(
+            'POST',
+            '/internal/register',
+            server: ['REMOTE_ADDR' => '127.0.0.1', 'CONTENT_TYPE' => 'application/json'],
+            content: json_encode(['username' => 'alice'], JSON_THROW_ON_ERROR),
+        );
+
+        self::assertResponseStatusCodeSame(403);
+        self::assertSame(['error' => 'Forbidden'], $this->decodeResponse());
     }
 
     public function testInternalRegisterRejectsRemoteRequestWithoutSecret(): void
@@ -177,6 +193,48 @@ final class NotificationApiTest extends WebTestCase
         self::assertSame('Default message', $payload['messages'][0]['content']);
     }
 
+    public function testMessagesRespectsLimitParameter(): void
+    {
+        $senderToken = $this->registerUser('sender-limit');
+        $readerToken = $this->registerUser('reader-limit');
+
+        for ($i = 1; $i <= 5; ++$i) {
+            $this->client->request(
+                'POST',
+                '/api/send',
+                server: $this->authServer($senderToken),
+                content: json_encode(['topic' => 'limit-topic', 'message' => sprintf('Msg %d', $i)], JSON_THROW_ON_ERROR),
+            );
+            self::assertResponseStatusCodeSame(201);
+        }
+
+        $this->client->request('GET', '/api/messages/limit-topic?limit=2', server: $this->authServer($readerToken));
+        self::assertResponseIsSuccessful();
+        $payload = $this->decodeResponse();
+        self::assertCount(2, $payload['messages']);
+        self::assertSame('Msg 1', $payload['messages'][0]['content']);
+        self::assertSame('Msg 2', $payload['messages'][1]['content']);
+
+        // Next fetch should retrieve subsequent messages starting after Msg 2
+        $this->client->request('GET', '/api/messages/limit-topic?limit=2', server: $this->authServer($readerToken));
+        self::assertResponseIsSuccessful();
+        $payload2 = $this->decodeResponse();
+        self::assertCount(2, $payload2['messages']);
+        self::assertSame('Msg 3', $payload2['messages'][0]['content']);
+        self::assertSame('Msg 4', $payload2['messages'][1]['content']);
+    }
+
+    public function testHealthzEndpoint(): void
+    {
+        $this->client->request('GET', '/healthz');
+
+        self::assertResponseIsSuccessful();
+        $payload = $this->decodeResponse();
+        self::assertSame('ok', $payload['status']);
+        self::assertSame('connected', $payload['database']);
+        self::assertSame('connected', $payload['redis']);
+    }
+
     public function testListTopicsEndpoint(): void
     {
         $token = $this->registerUser('topic-user');
@@ -270,6 +328,16 @@ final class NotificationApiTest extends WebTestCase
         self::assertSame(['error' => 'Invalid topic'], $this->decodeResponse());
     }
 
+    public function testMessagesRejectsTopicWithInvalidCharacters(): void
+    {
+        $token = $this->registerUser('reader-spec');
+
+        $this->client->request('GET', '/api/messages/topic%20with%20spaces', server: $this->authServer($token));
+
+        self::assertResponseStatusCodeSame(422);
+        self::assertSame(['error' => 'Invalid topic'], $this->decodeResponse());
+    }
+
     /**
      * @return iterable<string, array{0: array<string, mixed>}>
      */
@@ -278,6 +346,8 @@ final class NotificationApiTest extends WebTestCase
         yield 'missing topic' => [[]];
         yield 'blank topic' => [['topic' => '   ', 'message' => 'Hello']];
         yield 'topic too long' => [['topic' => str_repeat('a', 256), 'message' => 'Hello']];
+        yield 'topic invalid chars' => [['topic' => 'hello/world', 'message' => 'Hello']];
+        yield 'topic space chars' => [['topic' => 'hello world', 'message' => 'Hello']];
         yield 'missing message' => [['topic' => 'work']];
         yield 'blank message' => [['topic' => 'work', 'message' => '']];
         yield 'message too long' => [['topic' => 'work', 'message' => str_repeat('m', 4097)]];

@@ -1,4 +1,6 @@
 monolog:
+  channels:
+    - security_audit
   handlers:
     main:
       type: stream

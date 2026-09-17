@@ -12,7 +12,9 @@ WORKDIR /var/www/html
 
 COPY docker/php/php.ini /usr/local/etc/php/conf.d/99-app.ini
 COPY docker/php/entrypoint.sh /usr/local/bin/app-entrypoint
-RUN chmod +x /usr/local/bin/app-entrypoint
+RUN chmod +x /usr/local/bin/app-entrypoint \
+    && mkdir -p /var/www/html/var /var/www/html/public \
+    && chown -R www-data:www-data /var/www/html
 
 ENTRYPOINT ["app-entrypoint"]
 CMD ["php-fpm"]

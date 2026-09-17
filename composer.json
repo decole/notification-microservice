@@ -1,5 +1,6 @@
 {
   "name": "app/notification-service",
+  "description": "Notification Microservice built with Symfony",
   "type": "project",
   "license": "proprietary",
   "require": {
