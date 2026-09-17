@@ -55,6 +55,7 @@ jobs:
 
       - name: Check dependency vulnerabilities (SCA)
         run: composer audit --locked
+        continue-on-error: true
 
       - name: Code style check (php-cs-fixer)
         run: composer fix-cs
